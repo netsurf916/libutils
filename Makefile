@@ -12,23 +12,20 @@ LIBPATHS    = -L./ -L/usr/local/lib/
 
 SRCDIR      = code/utils/
 OBJECTS     = $(SRCDIR)BitMask.o $(SRCDIR)File.o    $(SRCDIR)Lockable.o \
-              $(SRCDIR)LogFile.o $(SRCDIR)NetInfo.o $(SRCDIR)String.o   \
+              $(SRCDIR)LogFile.o $(SRCDIR)NetInfo.o $(SRCDIR)Tokens.o   \
               $(SRCDIR)Types.o   $(SRCDIR)Buffer.o  $(SRCDIR)IniFile.o  \
-              $(SRCDIR)Lock.o    $(SRCDIR)Marker.o  $(SRCDIR)Socket.o   \
-              $(SRCDIR)Tokens.o
+              $(SRCDIR)Lock.o    $(SRCDIR)Socket.o
 
 INCDIR      = include/utils/
 HEADERS     = $(INCDIR)BitMask.hpp       $(INCDIR)IniFile.hpp      \
               $(INCDIR)Lock.hpp          $(INCDIR)NetInfo.hpp      \
-              $(INCDIR)Serializable.hpp  $(INCDIR)Staque.hpp       \
+              $(INCDIR)Tokens.hpp        $(INCDIR)Staque.hpp       \
               $(INCDIR)Types.hpp         $(INCDIR)Buffer.hpp       \
               $(INCDIR)KeyValuePair.hpp  $(INCDIR)LogFile.hpp      \
-              $(INCDIR)Primitive.hpp     $(INCDIR)Thread.hpp       \
-              $(INCDIR)String.hpp        $(INCDIR)Utils.hpp        \
+              $(INCDIR)Socket.hpp        $(INCDIR)Thread.hpp       \
+              $(INCDIR)Writable.hpp      $(INCDIR)Utils.hpp        \
               $(INCDIR)File.hpp          $(INCDIR)Lockable.hpp     \
-              $(INCDIR)Marker.hpp        $(INCDIR)Readable.hpp     \
-              $(INCDIR)Socket.hpp        $(INCDIR)Tokens.hpp       \
-              $(INCDIR)Writable.hpp
+              $(INCDIR)Readable.hpp
 
 libutils.a: $(OBJECTS) $(HEADERS) Makefile
 	ar rcs libutils.a $(OBJECTS)
