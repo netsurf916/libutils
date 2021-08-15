@@ -1,6 +1,6 @@
 /**
     Staque.cpp : Staque class implementation
-    Copyright 2008-2019 Daniel Wilson
+    Copyright 2008-2021 Daniel Wilson
 */
 
 #pragma once

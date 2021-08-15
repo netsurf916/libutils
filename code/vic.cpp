@@ -1,3 +1,8 @@
+/**
+    vic.cpp : Simple implementation of the VIC cipher
+    Copyright 2021 Daniel Wilson
+*/
+
 #include <stdio.h>
 #include <string>
 

@@ -1,6 +1,6 @@
 /**
     File.cpp : File class implementation
-    Copyright 2015-2019 Daniel Wilson
+    Copyright 2015-2021 Daniel Wilson
 */
 
 #include <utils/File.hpp>

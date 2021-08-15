@@ -1,3 +1,8 @@
+/**
+    httpd.cpp : Simple web server implementation
+    Copyright 2021 Daniel Wilson
+*/
+
 #include <utils/Socket.hpp>
 #include <utils/Tokens.hpp>
 #include <utils/LogFile.hpp>

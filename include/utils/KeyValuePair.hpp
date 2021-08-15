@@ -1,6 +1,6 @@
 /**
     KeyValuePair.hpp : KeyValuePair definition
-    Copyright 2016-2019 Daniel Wilson
+    Copyright 2016-2021 Daniel Wilson
 */
 
 #pragma once

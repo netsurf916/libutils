@@ -1,6 +1,6 @@
 /**
     Thread.hpp : Thread class definition
-    Copyright 2015-2016 Daniel Wilson
+    Copyright 2015-2021 Daniel Wilson
 */
 
 #include <utils/Lock.hpp>

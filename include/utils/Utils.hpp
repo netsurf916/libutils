@@ -1,6 +1,6 @@
 /**
     Utils.hpp : Main include file for utils namespace
-    Copyright 2017-2019 Daniel Wilson
+    Copyright 2017-2021 Daniel Wilson
 */
 
 #pragma once

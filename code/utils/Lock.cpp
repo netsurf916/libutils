@@ -1,6 +1,6 @@
 /**
     Lock.cpp : Lock implementation
-    Copyright 2014-2019 Daniel Wilson
+    Copyright 2014-2021 Daniel Wilson
 */
 
 #include <utils/Lock.hpp>
