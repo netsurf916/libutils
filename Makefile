@@ -40,7 +40,7 @@ libutils.a: $(OBJECTS) $(HEADERS) Makefile
 %: code/%.cpp $(HEADERS) libutils.a Makefile
 	$(CXX) $(CFLAGS) $(CXXFLAGS) $(INCLUDES) -o $@ $< $(LIBPATHS) $(LIBS)
 
-all: client server tests vic httpd
+all: vic httpd
 
 clean:
 	-rm libutils.a
