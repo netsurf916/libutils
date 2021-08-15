@@ -45,9 +45,6 @@ all: client server tests vic httpd
 clean:
 	-rm libutils.a
 	-rm $(OBJECTS)
-	-rm client
-	-rm server
-	-rm tests
 	-rm vic
 	-rm httpd
 
