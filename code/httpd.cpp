@@ -11,6 +11,7 @@
 #include <stdio.h>
 
 #define NUMTHREADS 128
+#define DEFMIME    "none" // Make sure this is defined in the ini file
 
 using namespace utils;
 
@@ -209,7 +210,6 @@ class HttpRequest : public Lockable
         {
             utils::Lock  lock( this );
             ::std::string host;
-            host = "none";
             ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > start = m_meta;
             while( start )
             {
@@ -685,8 +685,10 @@ void *ProcessClient( void *a_client )
                   context->settings->ReadValue( "document", "default", *defaultDoc ) ) )
             {
                 *fileName = httpRequest->Uri();
+                // Decode the URI and lookup the matching mime-type or use the default
                 if( !UriDecode( *hostHome, *defaultDoc, *fileName, *fileType ) ||
-                    !context->settings->ReadValue( "mime-types", (*fileType).c_str(), *mimeType ) )
+                    ( !context->settings->ReadValue( "mime-types", (*fileType).c_str(), *mimeType ) 
+                    && !context->settings->ReadValue( "mime-types", DEFMIME, *mimeType ) ) )
                 {
                     fileName->clear();
                     mimeType->clear();
@@ -839,7 +841,7 @@ bool UriDecode( ::std::string &a_base, ::std::string &a_defaultDoc, ::std::strin
     }
     if( a_ext.length() == 0 )
     {
-        a_ext = "none";
+        a_ext = DEFMIME;
     }
     a_uri = newUri;
 
