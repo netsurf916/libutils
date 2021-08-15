@@ -9,7 +9,6 @@
 #define _UTILS_HPP_
 
 // Interfaces
-#include <utils/Serializable.hpp>
 #include <utils/Readable.hpp>
 #include <utils/Writable.hpp>
 #include <utils/Lockable.hpp>
@@ -17,10 +16,8 @@
 // Common types
 #include <utils/Types.hpp>
 #include <utils/Lock.hpp>
-#include <utils/Primitive.hpp>
 #include <utils/BitMask.hpp>
 #include <utils/Buffer.hpp>
-#include <utils/String.hpp>
 #include <utils/Staque.hpp>
 
 // Complex types

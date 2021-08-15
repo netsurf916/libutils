@@ -21,7 +21,7 @@ namespace utils
         ::utils::Lock lock( this );
     }
 
-    String &IniFileHeading::Name()
+    ::std::string &IniFileHeading::Name()
     {
         ::utils::Lock lock( this );
         return m_name;
@@ -33,7 +33,7 @@ namespace utils
         return m_next;
     }
 
-    ::std::shared_ptr< KeyValuePair< String, String > > &IniFileHeading::Entries()
+    ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > &IniFileHeading::Entries()
     {
         ::utils::Lock lock( this );
         return m_entries;
@@ -46,11 +46,11 @@ namespace utils
         {
             return false;
         }
-        ::std::shared_ptr< KeyValuePair< String, String > > entry = ::std::make_shared< KeyValuePair< String, String > >();
+        ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > entry = ::std::make_shared< KeyValuePair< ::std::string, ::std::string > >();
         if( entry )
         {
             entry->Key() = a_key;
-            entry->Key().ToUpper();
+            Tokens::MakeUpper( entry->Key() );
             entry->Value() = a_value;
             if( !m_entries )
             {
@@ -59,7 +59,7 @@ namespace utils
             }
             else
             {
-                ::std::shared_ptr< KeyValuePair< String, String > > start = m_entries;
+                ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > start = m_entries;
                 while( start && ( start->Key() != entry->Key() ) )
                 {
                     if( !start->Next() )
@@ -79,21 +79,20 @@ namespace utils
         return false;
     }
 
-    bool IniFileHeading::GetValue( const char *a_key, String &a_value )
+    bool IniFileHeading::GetValue( const char *a_key, ::std::string &a_value )
     {
         ::utils::Lock lock( this );
-        ::utils::Lock valueLock( &a_value );
         if( ( nullptr == a_key ) || !m_entries )
         {
             return false;
         }
-        String key( a_key );
-        if( !key )
+        ::std::string key( a_key );
+        if( key.length() == 0 )
         {
             return false;
         }
-        key.ToUpper();
-        ::std::shared_ptr< KeyValuePair< String, String > > entries = m_entries;
+        Tokens::MakeUpper( key );
+        ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > entries = m_entries;
         while( entries )
         {
             if( entries->Key() == key )
@@ -124,7 +123,7 @@ namespace utils
     {
         ::utils::Lock lock( this );
         ::utils::Lock fileLock( &m_file );
-        String heading;
+        ::std::string heading;
         ::std::shared_ptr< Buffer > buffer = ::std::make_shared< Buffer >( 4096 );
         m_loading = true;
         m_modTime = m_file.ModificationTime();
@@ -132,20 +131,21 @@ namespace utils
         m_file.Seek( 0 );
         while( buffer && ( TokenTypes::Line == Tokens::GetLine( m_file, *buffer ) ) )
         {
-            String line;
+            ::std::string line;
             Tokens::GetToken( *buffer, line, ';' );
             buffer->Clear();
-            if( 0 == line.Length() )
+            if( 0 == line.length() )
             {
                 // Skip the comment line
                 continue;
             }
-            if( line.Contains( "[" ) && line.Contains( "]" ) )
+            if( ( line.find( "[" ) != ::std::string::npos )
+             && ( line.find( "]" ) != ::std::string::npos ) )
             {
                 // Get the heading name
-                heading.Clear();
+                heading.clear();
                 bool inHeading = false;
-                for( uint16_t i = 0; i < line.Length(); ++i )
+                for( uint16_t i = 0; i < line.length(); ++i )
                 {
                     if( !inHeading && ( '[' == line[ i ] ) )
                     {
@@ -159,36 +159,35 @@ namespace utils
                     }
                     heading += line[ i ];
                 }
+                Tokens::MakeUpper( heading );
             }
-            else if( ( heading.Length() ) > 0 && line.Contains( "=" ) )
+            else if( ( heading.length() > 0 )
+                  && ( line.find( "=" ) != ::std::string::npos ) )
             {
                 // Get an entry
-                String key;
-                String value;
+                ::std::string key;
+                ::std::string value;
                 bool inKey = true;
-                for( uint16_t i = 0; i < line.Length(); ++i )
+                for( uint16_t i = 0; i < line.length(); ++i )
                 {
                     if( '=' == line[ i ] )
                     {
                         inKey = false;
                         continue;
                     }
-                    if( inKey )
+                    if( inKey && ( line[ i ] != '\t' ) && ( line[ i ] != ' ' ) )
                     {
                         key += line[ i ];
                     }
-                    else
+                    else if( ( line[ i ] != '\t' ) && ( line[ i ] != ' ' ) )
                     {
                         value += line[ i ];
                     }
                 }
-                key.Trim();
-                value.Trim();
-                if( ( heading.Length() > 0 ) && ( key.Length() > 0 ) && ( value.Length() > 0 ) )
+                if( ( heading.length() > 0 ) && ( key.length() > 0 ) && ( value.length() > 0 ) )
                 {
-                    heading.ToUpper();
-                    key.ToUpper();
-                    WriteValue( ( const char * )heading, ( const char * )key, ( const char * )value );
+                    Tokens::MakeUpper( key );
+                    WriteValue( heading.c_str(), key.c_str(), value.c_str() );
                 }
             }
         }
@@ -212,14 +211,14 @@ namespace utils
             while( start )
             {
                 m_file.Write( ( const uint8_t * )"[", 1 );
-                m_file.Write( ( const uint8_t * )start->Name(), start->Name().Length() );
+                m_file.Write( ( const uint8_t * )start->Name().c_str(), start->Name().length() );
                 m_file.Write( ( const uint8_t * )"]\n", 2 );
-                ::std::shared_ptr< KeyValuePair< String, String > > entries = start->Entries();
+                ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > entries = start->Entries();
                 while( entries )
                 {
-                    m_file.Write( ( const uint8_t * )entries->Key(), entries->Key().Length() );
+                    m_file.Write( ( const uint8_t * )entries->Key().c_str(), entries->Key().length() );
                     m_file.Write( ( const uint8_t * )" = ", 3 );
-                    m_file.Write( ( const uint8_t * )entries->Value(), entries->Value().Length() );
+                    m_file.Write( ( const uint8_t * )entries->Value().c_str(), entries->Value().length() );
                     m_file.Write( ( const uint8_t * )"\n", 1 );
                     entries = entries->Next();
                 }
@@ -232,22 +231,21 @@ namespace utils
         }
     }
 
-    bool IniFile::ReadValue( const char *a_heading, const char *a_name, String &a_value )
+    bool IniFile::ReadValue( const char *a_heading, const char *a_name, ::std::string &a_value )
     {
         ::utils::Lock lock( this );
-        ::utils::Lock valueLock( &a_value );
         if( m_file.ModificationTime() != m_modTime )
         {
             LoadFile();
         }
         if( m_heading )
         {
-            String heading( a_heading );
-            if( !heading )
+            ::std::string heading( a_heading );
+            if( heading.length() == 0 )
             {
                 return false;
             }
-            heading.ToUpper();
+            Tokens::MakeUpper( heading ); printf("Heading: %s\n", heading.c_str());
             ::std::shared_ptr< IniFileHeading > start = m_heading;
             while( start && ( start->Name() != heading ) )
             {
@@ -270,7 +268,7 @@ namespace utils
             if( m_heading )
             {
                 m_heading->Name() = a_heading;
-                m_heading->Name().ToUpper();
+                Tokens::MakeUpper( m_heading->Name() );
                 if( !m_heading->SetValue( a_name, a_value ) )
                 {
                     m_heading = nullptr;
@@ -301,7 +299,7 @@ namespace utils
             }
             if( start )
             {
-                String value;
+                ::std::string value;
                 if( !updated )
                 {
                     if( start->GetValue( a_name, value ) )

@@ -245,7 +245,7 @@ namespace utils
         return done;
     }
 
-    bool Socket::GetRemoteAddress( String &a_address, uint32_t &a_port )
+    bool Socket::GetRemoteAddress( ::std::string &a_address, uint32_t &a_port )
     {
         ::utils::Lock lock( this );
         if( m_flags[ SocketFlag::Server ] )

@@ -8,9 +8,7 @@
 #ifndef _NETINFO_HPP_
 #define _NETINFO_HPP_
 
-#include <utils/Serializable.hpp>
 #include <utils/BitMask.hpp>
-#include <utils/String.hpp>
 #include <sys/types.h>
 #include <ifaddrs.h>
 #include <memory>
@@ -30,17 +28,17 @@ namespace utils
     }
     typedef NetworkFlags::Types NetworkFlag;
 
-    class NetInfo : public Serializable
+    class NetInfo
     {
         public:
             NetInfo();
             NetInfo( struct ifaddrs *a_info );
             ~NetInfo();
 
-            String &Name();
-            String &Address();
-            String &NetMask();
-            String &Broadcast();
+            ::std::string &Name();
+            ::std::string &Address();
+            ::std::string &NetMask();
+            ::std::string &Broadcast();
 
             bool IsIPv4();
             bool IsIPv6();
@@ -54,18 +52,13 @@ namespace utils
 
             static ::std::shared_ptr< NetInfo > GetInterfaces();
 
-            // Serializable functions
-            uint8_t Type() noexcept final;
-            bool    Serialize  ( Writable &a_out ) noexcept final;
-            bool    Deserialize( Readable &a_in  ) noexcept final;
-
         private:
             BitMask m_flags;
-            String  m_name;
-            String  m_address;
-            String  m_netmask;
-            String  m_broadcast;
-            Primitive< uint16_t > m_family;
+            ::std::string  m_name;
+            ::std::string  m_address;
+            ::std::string  m_netmask;
+            ::std::string  m_broadcast;
+            uint16_t       m_family;
             ::std::shared_ptr< NetInfo > m_prev;
             ::std::shared_ptr< NetInfo > m_next;
 

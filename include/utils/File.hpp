@@ -29,28 +29,21 @@ namespace utils
     typedef FileModes::Modes FileMode;
 
     class File : public Readable,
-                 public Writable,
-                 public Serializable
+                 public Writable
     {
         protected:
-            String    m_fileName;
-            uint32_t  m_mode;
-            FILE     *m_file;
-            bool      m_ready;
+            ::std::string  m_fileName;
+            uint32_t       m_mode;
+            FILE          *m_file;
+            bool           m_ready;
 
         public:
             File( FILE *a_file, uint32_t a_mode = FileMode::DefaultRead );
-            File( String &a_fileName, uint32_t a_mode = FileMode::DefaultRead );
             File( const char *a_fileName, uint32_t a_mode = FileMode::DefaultRead );
             ~File();
 
-            String &Name();
+            ::std::string &Name();
             operator const char *();
-
-            // Serialize functions
-            uint8_t Type() noexcept final;
-            bool    Serialize( Writable &a_out ) noexcept final;
-            bool    Deserialize( Readable &a_in ) noexcept final;
 
             void     SetMode( uint32_t a_mode = FileMode::DefaultRead );
             uint64_t Size();

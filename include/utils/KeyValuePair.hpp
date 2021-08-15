@@ -10,14 +10,15 @@
 
 #include <utils/Types.hpp>
 #include <utils/Lock.hpp>
-#include <utils/Serializable.hpp>
 #include <utils/Tokens.hpp>
+#include <utils/Lockable.hpp>
 #include <memory>
+#include <string>
 
 namespace utils
 {
     template< typename key_type, typename value_type >
-    class KeyValuePair : public Serializable
+    class KeyValuePair : public Lockable
     {
         private:
             key_type   m_key;
@@ -34,8 +35,8 @@ namespace utils
             ~KeyValuePair()
             {
                 ::utils::Lock lock( this );
-                m_key.Clear();
-                m_value.Clear();
+                m_key.clear();
+                m_value.clear();
             }
 
             key_type &Key()
@@ -56,37 +57,19 @@ namespace utils
                 return m_next;
             }
 
-            // Serializable functions
-            uint8_t Type() noexcept final
-            {
-                return SerializableType::KeyValuePair;
-            }
-
-            bool Serialize( Writable &a_out ) noexcept final
-            {
-                ::utils::Lock lock( this );
-                return SerializeType( a_out ) && m_key.Serialize( a_out ) && m_value.Serialize( a_out );
-            }
-
-            bool Deserialize( Readable &a_in ) noexcept final
-            {
-                ::utils::Lock lock( this );
-                return DeserializeType( a_in ) && m_key.Deserialize( a_in ) && m_value.Deserialize( a_in );
-            }
-
-            void ToJson( String &a_json )
+            void ToJson( ::std::string &a_json )
             {
                 ::std::shared_ptr< KeyValuePair< key_type, value_type > > meta = this;
-                String temp;
+                ::std::string temp;
                 a_json += "{";
                 while( meta )
                 {
                     a_json += "\"";
-                    a_json += Tokens::EscapeJson( meta->Key(), temp ); temp.Clear();
+                    a_json += Tokens::EscapeJson( meta->Key(), temp ); temp.clear();
                     a_json += "\"";
                     a_json += ":";
                     a_json += "\"";
-                    a_json += Tokens::EscapeJson( meta->Value(), temp ); temp.Clear();
+                    a_json += Tokens::EscapeJson( meta->Value(), temp ); temp.clear();
                     a_json += "\"";
                     meta = meta->Next();
                     if( meta )

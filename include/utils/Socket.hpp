@@ -5,11 +5,11 @@
 
 #include <utils/Types.hpp>
 #include <utils/Buffer.hpp>
-#include <utils/String.hpp>
 #include <utils/BitMask.hpp>
 #include <utils/Readable.hpp>
 #include <utils/Writable.hpp>
 #include <memory>
+#include <netinet/in.h>
 
 #pragma once
 
@@ -56,7 +56,7 @@ namespace utils
             bool    Accept( int32_t &a_client );
             int32_t LastError();
             bool    ReadLine( ::std::shared_ptr< Buffer > &a_buffer, bool a_block = false );
-            bool    GetRemoteAddress( String &a_address, uint32_t &a_port );
+            bool    GetRemoteAddress( ::std::string &a_address, uint32_t &a_port );
             void    Shutdown();
 
             // Read functions

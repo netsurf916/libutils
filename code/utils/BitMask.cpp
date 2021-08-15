@@ -4,6 +4,7 @@
 */
 
 #include <utils/BitMask.hpp>
+#include <utils/Lock.hpp>
 
 namespace utils
 {
@@ -88,28 +89,5 @@ namespace utils
             return false;
         }
         return ( ( m_bitMask & ( uint32_t )BIT( a_bit ) ) == ( uint32_t )BIT( a_bit ) );
-    }
-
-    uint8_t BitMask::Type() noexcept
-    {
-        return static_cast< uint8_t >( SerializableType::BitMask );
-    }
-
-    bool BitMask::Serialize( Writable &a_out ) noexcept
-    {
-        ::utils::Lock lock( this );
-        ::utils::Lock valueLock( &a_out );
-        bool ok = SerializeType( a_out );
-        ok = ok && m_bitMask.Serialize( a_out );
-        return ok;
-    }
-
-    bool BitMask::Deserialize( Readable &a_in  ) noexcept
-    {
-        ::utils::Lock lock( this );
-        ::utils::Lock valueLock( &a_in );
-        bool ok = DeserializeType( a_in );
-        ok = ok && m_bitMask.Deserialize( a_in );
-        return ok;
     }
 }

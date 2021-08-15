@@ -8,7 +8,7 @@
 
 namespace utils
 {
-    TokenType Tokens::GetToken( Readable &a_input, String &a_token, char a_delim /*= 0*/ )
+    TokenType Tokens::GetToken( Readable &a_input, ::std::string &a_token, char a_delim /*= 0*/ )
     {
         bool      ok   = true;
         uint8_t   c    = 0;
@@ -20,7 +20,7 @@ namespace utils
         }
 
         // Clear the output token
-        a_token.Clear();
+        a_token.clear();
 
         // Get a token
         if( a_delim != 0 )
@@ -68,7 +68,7 @@ namespace utils
                         a_token += c;
                     }
                 } while( ok && a_input.Peek( c ) && IsNumber( c ) );
-                if( ok && ( a_token.Length() > 0 ) )
+                if( ok && ( a_token.length() > 0 ) )
                 {
                     type = TokenTypes::Number;
                 }
@@ -84,7 +84,7 @@ namespace utils
                         a_token += c;
                     }
                 } while( ok && a_input.Peek( c ) && IsLetter( c ) );
-                if( ok && ( a_token.Length() > 0 ) )
+                if( ok && ( a_token.length() > 0 ) )
                 {
                     type = TokenTypes::String;
                 }
@@ -113,7 +113,7 @@ namespace utils
         return type;
     }
 
-    TokenType Tokens::GetLine( Readable &a_input, String &a_token )
+    TokenType Tokens::GetLine( Readable &a_input, ::std::string &a_token )
     {
         bool      ok   = true;
         uint8_t   c    = 0;
@@ -123,7 +123,7 @@ namespace utils
         {
             return type;
         }
-        a_token.Clear();
+        a_token.clear();
 
         // Get a line
         while( ok && a_input.Peek( c ) )
@@ -195,11 +195,9 @@ namespace utils
         return type;
     }
 
-    String &Tokens::EscapeJson( String &a_input, String &a_output )
+    ::std::string &Tokens::EscapeJson( ::std::string &a_input, ::std::string &a_output )
     {
-        ::utils::Lock lock( &a_input );
-        ::utils::Lock valueLock( &a_output );
-        for( uint32_t c = 0; c < a_input.Length(); ++c )
+        for( uint32_t c = 0; c < a_input.length(); ++c )
         {
             if( ( '\"' == a_input[ c ] ) ||
                 ( '\\' == a_input[ c ] ) ||

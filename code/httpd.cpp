@@ -1,6 +1,5 @@
 #include <utils/Socket.hpp>
 #include <utils/Tokens.hpp>
-#include <utils/String.hpp>
 #include <utils/LogFile.hpp>
 #include <utils/IniFile.hpp>
 #include <utils/File.hpp>
@@ -23,7 +22,7 @@ struct ThreadCTX : public Lockable
 };
 
 void *ProcessClient( void *a_client );
-bool  UriDecode( String &a_base, String &a_defaultDoc, String &a_uri, String &a_ext );
+bool  UriDecode( ::std::string &a_base, ::std::string &a_defaultDoc, ::std::string &a_uri, ::std::string &a_ext );
 
 int main( int argc, char *argv[] )
 {
@@ -53,26 +52,26 @@ int main( int argc, char *argv[] )
         return 0;
     }
 
-    String port;
-    String address;
-    settings->ReadValue( "settings", "port", port );
+    ::std::string port;
+    ::std::string address;
+    settings->ReadValue( "settings", "port",    port );
     settings->ReadValue( "settings", "address", address );
 
-    if( ( 0 == port.Length() ) || ( 0 == address.Length() ) )
+    if( ( 0 == port.length() ) || ( 0 == address.length() ) )
     {
         printf( " [!] Failed to read configuration\n" );
         return 0;
     }
 
-    ::std::shared_ptr< Socket > listener = ::std::make_shared< Socket >( address, port.ToUint(), SocketFlags::TcpServer );
+    ::std::shared_ptr< Socket > listener = ::std::make_shared< Socket >( address.c_str(), ::std::stoi( port ), SocketFlags::TcpServer );
     if( !listener || !listener->Valid() )
     {
-        printf( " [!] Error listening on: %s:%lu\n", ( const char * )address, port.ToUint() );
+        printf( " [!] Error listening on: %s:%lu\n", address.c_str(), ::std::stol( port ) );
         return 0;
     }
 
     printf( " [+] Listening for incoming connnections on: %s:%lu\n",
-        ( const char * )address, port.ToUint() );
+        address.c_str(), ::std::stol( port ) );
     logger->Log( "Listening for incoming connections on: ", true, false );
     logger->Log( address, false, false );
     logger->Log( ":", false, false );
@@ -147,27 +146,27 @@ int main( int argc, char *argv[] )
 class HttpRequest : public Lockable
 {
     private:
-        String   m_method;
-        String   m_uri;
-        String   m_version;
+        ::std::string   m_method;
+        ::std::string   m_uri;
+        ::std::string   m_version;
         uint64_t m_length;
         int64_t  m_start;
         int64_t  m_end;
-        String   m_body;
-        String   m_host;
+        ::std::string   m_body;
+        ::std::string   m_host;
         uint32_t m_port;
         bool     m_timeout;
-        ::std::shared_ptr< KeyValuePair< String, String > > m_meta;
+        ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > m_meta;
 
     public:
         void Reset()
         {
             utils::Lock lock( this );
-            m_method.Clear();
-            m_uri.Clear();
-            m_version.Clear();
-            m_body.Clear();
-            m_host.Clear();
+            m_method.clear();
+            m_uri.clear();
+            m_version.clear();
+            m_body.clear();
+            m_host.clear();
             m_port    = 0;
             m_length  = 0;
             m_start   = -1;
@@ -188,30 +187,30 @@ class HttpRequest : public Lockable
             Reset();
         }
 
-        String &Uri()
+        ::std::string &Uri()
         {
             utils::Lock lock( this );
             return m_uri;
         }
 
-        String &Method()
+        ::std::string &Method()
         {
             utils::Lock lock( this );
             return m_method;
         }
 
-        ::std::shared_ptr< KeyValuePair< String, String > > &Meta()
+        ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > &Meta()
         {
             utils::Lock lock( this );
             return m_meta;
         }
 
-        String Host()
+        ::std::string Host()
         {
             utils::Lock  lock( this );
-            String host;
+            ::std::string host;
             host = "none";
-            ::std::shared_ptr< KeyValuePair< String, String > > start = m_meta;
+            ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > start = m_meta;
             while( start )
             {
                 if( start->Key() == "HOST" )
@@ -230,7 +229,7 @@ class HttpRequest : public Lockable
             utils::Lock valueLock( &a_socket );
             uint32_t    timeout = 10000;
             uint32_t    count = 0;
-            String      token;
+            ::std::string      token;
 
             ::std::shared_ptr< Buffer > recvb = ::std::make_shared< Buffer >( 2048 );
 
@@ -273,11 +272,11 @@ class HttpRequest : public Lockable
                                 continue;
                             }
                             uint8_t data = 0;
-                            while( recvb->Read( data ) && ( m_body.Length() < m_length ) )
+                            while( recvb->Read( data ) && ( m_body.length() < m_length ) )
                             {
                                 m_body += ( char )data;
                             }
-                            if( m_body.Length() >= m_length )
+                            if( m_body.length() >= m_length )
                             {
                                 break;
                             }
@@ -286,18 +285,20 @@ class HttpRequest : public Lockable
                     // This is the end of the HTTP request
                     break;
                 }
-                else if( 0 == m_method.Length() )
+                else if( 0 == m_method.length() )
                 {
                     // Get the request line
                     if( Tokens::GetToken( *recvb, token, ' ' ) == TokenTypes::Delineated )
                     {
-                        m_method = token.ToUpper();
+                        m_method = token;
+                        Tokens::MakeUpper( m_method );
                         if( Tokens::GetToken( *recvb, token, ' ' ) == TokenTypes::Delineated )
                         {
                             m_uri = token;
                             if( Tokens::GetToken( *recvb, token, ' ' ) == TokenTypes::Delineated )
                             {
-                                m_version = token.ToUpper();
+                                m_version = token;
+                                Tokens::MakeUpper( m_version );
                             }
                         }
                     }
@@ -308,30 +309,35 @@ class HttpRequest : public Lockable
                     if( ( count < 100 ) && ( Tokens::GetToken( *recvb, token, ':' ) == TokenTypes::Delineated ) )
                     {
                         ++count;
-                        ::std::shared_ptr< KeyValuePair< String, String > > temp = ::std::make_shared< KeyValuePair< String, String > >();
+                        ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > temp = ::std::make_shared< KeyValuePair< ::std::string, ::std::string > >();
                         if( temp )
                         {
-                            temp->Key() = token.Trim();
+                            temp->Key() = token;
+                            Tokens::TrimSpace( temp->Key() );
+                            Tokens::MakeUpper( temp->Key() );
                             if( Tokens::GetLine( *recvb, token ) == TokenTypes::Line )
                             {
-                                temp->Value() = token.Trim();
-                                if( temp->Key().ToUpper() == "CONTENT-LENGTH" )
+                                temp->Value() = token;
+                                Tokens::TrimSpace( temp->Value() );
+                                if( temp->Key() == "CONTENT-LENGTH" )
                                 {
-                                    m_length = temp->Value().ToUint();
+                                    m_length = ::std::stoi( temp->Value() );
                                 }
-                                if( temp->Key().ToUpper() == "RANGE" )
+                                if( temp->Key() == "RANGE" )
                                 {
                                     ::std::shared_ptr< Buffer > range =
-                                        ::std::make_shared< Buffer >( temp->Value().Length() );
+                                        ::std::make_shared< Buffer >( temp->Value().length() );
                                     if( range )
                                     {
-                                        range->Write( ( const uint8_t * ) temp->Value(), temp->Value().Length() );
+                                        range->Write( ( const uint8_t * ) temp->Value().c_str(), temp->Value().length() );
                                         m_start = -1;
                                         m_end = -1;
                                         int negative = 0;
                                         while( Tokens::GetToken( *range, token ) )
                                         {
-                                            if( token.ToUpper() == "BYTES" )
+                                            ::std::string token_upper( token );
+                                            Tokens::MakeUpper( token_upper );
+                                            if( token_upper == "BYTES" )
                                             {
                                                 continue;
                                             }
@@ -346,7 +352,7 @@ class HttpRequest : public Lockable
                                             }
                                             if( -1 == m_start )
                                             {
-                                                m_start = token.ToUint();
+                                                m_start = ::std::stoi( token );
                                                 if( negative )
                                                 {
                                                     m_start *= -1;
@@ -356,7 +362,7 @@ class HttpRequest : public Lockable
                                             }
                                             else if( -1 == m_end )
                                             {
-                                                m_end = token.ToUint();
+                                                m_end = ::std::stoi( token );
                                                 if( negative > 1 )
                                                 {
                                                     m_end *= -1;
@@ -397,22 +403,22 @@ class HttpRequest : public Lockable
                     }
                 }
             }
-            return ( ( timeout > 0 ) && ( m_method.Length() > 0 ) && ( m_uri.Length() > 0 ) && ( m_version.Length() > 0 ) );
+            return ( ( timeout > 0 ) && ( m_method.length() > 0 ) && ( m_uri.length() > 0 ) && ( m_version.length() > 0 ) );
         }
 
-        int32_t Respond( Socket &a_socket, String &a_fileName, String &a_type )
+        int32_t Respond( Socket &a_socket, ::std::string &a_fileName, ::std::string &a_type )
         {
             utils::Lock    lock( this );
             utils::Lock    valueLock( &a_socket );
             ::std::shared_ptr< Buffer > sendb =
                 ::std::make_shared< Buffer >( 2048 );
-            ::std::shared_ptr< File > file = ::std::make_shared< File >( a_fileName );
+            ::std::shared_ptr< File > file = ::std::make_shared< File >( a_fileName.c_str() );
 
             if( !a_socket.Valid() || !sendb || !file || !file->Exists() )
             {
                 if( a_socket.Valid() && sendb )
                 {
-                    sendb->Write( ( const uint8_t * )m_version, m_version.Length() );
+                    sendb->Write( ( const uint8_t * )m_version.c_str(), m_version.length() );
                     sendb->Write( ( const uint8_t * )" 404 NOT FOUND\r\n" );
                     sendb->Write( ( const uint8_t * )"Content-type: text/html\r\n" );
                     sendb->Write( ( const uint8_t * )"Content-length: 57\r\n\r\n" );
@@ -422,7 +428,7 @@ class HttpRequest : public Lockable
                 }
                 return -1;
             }
-            if( m_timeout || ( 0 == m_version.Length() ) )
+            if( m_timeout || ( 0 == m_version.length() ) )
             {
                 sendb->Write( ( const uint8_t * )"HTTP/1.1 408 TIMEOUT\r\n" );
                 sendb->Write( ( const uint8_t * )"Content-type: text/html\r\n" );
@@ -431,24 +437,24 @@ class HttpRequest : public Lockable
                 while( a_socket.Write( sendb ) );
                 return 408;
             }
-            else if( ( ( m_method.ToUpper() == "HEAD" ) ||
-                     ( m_method.ToUpper() == "GET" ) ) &&
-                     ( ( m_version.ToUpper() == "HTTP/1.1" ) ||
-                     ( m_version.ToUpper() == "HTTP/1.0" ) ) )
+            else if( ( ( m_method == "HEAD" ) ||
+                     ( m_method == "GET" ) ) &&
+                     ( ( m_version == "HTTP/1.1" ) ||
+                     ( m_version == "HTTP/1.0" ) ) )
             {
-                if( a_type.Length() )
+                if( a_type.length() )
                 {
                     char buffer[ 4096 ];
-                    if( ( m_method.ToUpper() == "GET" ) && ( m_start >= 0 ) )
+                    if( ( m_method == "GET" ) && ( m_start >= 0 ) )
                     {
                         if( m_end < m_start )
                         {
                             m_end = file->Size() - 1;
                         }
-                        sendb->Write( ( const uint8_t * )m_version, m_version.Length() );
+                        sendb->Write( ( const uint8_t * )m_version.c_str(), m_version.length() );
                         sendb->Write( ( const uint8_t * )" 206 PARTIAL CONTENT\r\n" );
                         sendb->Write( ( const uint8_t * )"Content-type: " );
-                        sendb->Write( ( const uint8_t * )a_type, a_type.Length() );
+                        sendb->Write( ( const uint8_t * )a_type.c_str(), a_type.length() );
                         sendb->Write( ( const uint8_t * )"\r\n" );
                         sendb->Write( ( const uint8_t * )"Accept-ranges: bytes\r\n" );
                         sendb->Write( ( const uint8_t * )"Content-range: bytes " );
@@ -502,10 +508,10 @@ class HttpRequest : public Lockable
                     else
                     {
                         snprintf( buffer, sizeof( buffer ), "%lu", file->Size() );
-                        sendb->Write( ( const uint8_t * )m_version, m_version.Length() );
+                        sendb->Write( ( const uint8_t * )m_version.c_str(), m_version.length() );
                         sendb->Write( ( const uint8_t * )" 200 OK\r\n" );
                         sendb->Write( ( const uint8_t * )"Content-type: " );
-                        sendb->Write( ( const uint8_t * )a_type, a_type.Length() );
+                        sendb->Write( ( const uint8_t * )a_type.c_str(), a_type.length() );
                         sendb->Write( ( const uint8_t * )"\r\n" );
                         sendb->Write( ( const uint8_t * )"Accept-ranges: bytes\r\n" );
                         sendb->Write( ( const uint8_t * )"Content-length: " );
@@ -515,7 +521,7 @@ class HttpRequest : public Lockable
                         {
                             a_socket.Write( sendb );
                         }
-                        if( m_method.ToUpper() == "GET" )
+                        if( m_method == "GET" )
                         {
                             while( ( ( file->Size() - file->Position() ) > 0 ) && a_socket.Valid() )
                             {
@@ -551,7 +557,7 @@ class HttpRequest : public Lockable
                 }
                 else
                 {
-                    sendb->Write( ( const uint8_t * )m_version, m_version.Length() );
+                    sendb->Write( ( const uint8_t * )m_version.c_str(), m_version.length() );
                     sendb->Write( ( const uint8_t * )" 404 NOT FOUND\r\n" );
                     sendb->Write( ( const uint8_t * )"Content-type: text/html\r\n" );
                     sendb->Write( ( const uint8_t * )"Content-length: 57\r\n\r\n" );
@@ -575,12 +581,12 @@ class HttpRequest : public Lockable
         void Print()
         {
             utils::Lock  lock( this );
-            ::std::shared_ptr< KeyValuePair< String, String > > start = m_meta;
-            printf( " [*] Remote: %s:%d\n", ( const char * )m_host, m_port );
-            printf( " [>] %s %s %s\n", ( const char * )m_method, ( const char * )m_uri, ( const char * )m_version );
+            ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > start = m_meta;
+            printf( " [*] Remote: %s:%d\n", m_host.c_str(), m_port );
+            printf( " [>] %s %s %s\n", m_method.c_str(), m_uri.c_str(), m_version.c_str() );
             while( start )
             {
-                printf( " [>] %s: %s\n", ( const char * )( start->Key() ), ( const char * )( start->Value() ) );
+                printf( " [>] %s: %s\n", start->Key().c_str(), start->Value().c_str() );
                 start = start->Next();
             }
         }
@@ -590,7 +596,7 @@ class HttpRequest : public Lockable
             utils::Lock  lock( this );
             utils::Lock  valueLock( &a_logger );
             char                  buffer[ 32 ];
-            ::std::shared_ptr< KeyValuePair< String, String > > start = m_meta;
+            ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > start = m_meta;
 
             snprintf( buffer, sizeof( buffer ), "%u", m_port );
             a_logger.Log( m_host, true, false );
@@ -615,7 +621,7 @@ class HttpRequest : public Lockable
                 start = start->Next();
             }
 
-            if( m_body.Length() > 0 )
+            if( m_body.length() > 0 )
             {
                 a_logger.Log( m_host, true, false );
                 a_logger.Log( ":", false, false );
@@ -630,7 +636,7 @@ void *ProcessClient( void *a_client )
 {
     ThreadCTX   *context = ( ThreadCTX * ) a_client;
     HttpRequest *httpRequest = new HttpRequest();
-    String      *host = new String();
+    ::std::string      *host = new ::std::string();
     uint32_t       port;
 
     if( ( NULL == context          ) ||
@@ -662,28 +668,28 @@ void *ProcessClient( void *a_client )
     while( context->socket->Valid() && httpRequest->Read( *( context->socket ) ) )
     {
         printf( " [+] Got HTTP request\n" );
-        ::std::shared_ptr< String > fileName   = ::std::make_shared< String >();
-        ::std::shared_ptr< String > fileType   = ::std::make_shared< String >();
-        ::std::shared_ptr< String > mimeType   = ::std::make_shared< String >();
-        ::std::shared_ptr< String > hostHome   = ::std::make_shared< String >();
-        ::std::shared_ptr< String > defaultDoc = ::std::make_shared< String >();
+        ::std::shared_ptr< ::std::string > fileName   = ::std::make_shared< ::std::string >();
+        ::std::shared_ptr< ::std::string > fileType   = ::std::make_shared< ::std::string >();
+        ::std::shared_ptr< ::std::string > mimeType   = ::std::make_shared< ::std::string >();
+        ::std::shared_ptr< ::std::string > hostHome   = ::std::make_shared< ::std::string >();
+        ::std::shared_ptr< ::std::string > defaultDoc = ::std::make_shared< ::std::string >();
         if( fileName && fileType && mimeType && hostHome && defaultDoc )
         {
             int response = 0;
             httpRequest->Print();
             httpRequest->Log( *( context->logger ) );
 
-            if( ( context->settings->ReadValue( "path", httpRequest->Host(), *hostHome ) ||
+            if( ( context->settings->ReadValue( "path", httpRequest->Host().c_str(), *hostHome ) ||
                   context->settings->ReadValue( "path", "default", *hostHome ) ) &&
-                ( context->settings->ReadValue( "document", httpRequest->Host(), *defaultDoc ) ||
+                ( context->settings->ReadValue( "document", httpRequest->Host().c_str(), *defaultDoc ) ||
                   context->settings->ReadValue( "document", "default", *defaultDoc ) ) )
             {
                 *fileName = httpRequest->Uri();
                 if( !UriDecode( *hostHome, *defaultDoc, *fileName, *fileType ) ||
-                    !context->settings->ReadValue( "mime-types", *fileType, *mimeType ) )
+                    !context->settings->ReadValue( "mime-types", (*fileType).c_str(), *mimeType ) )
                 {
-                    fileName->Clear();
-                    mimeType->Clear();
+                    fileName->clear();
+                    mimeType->clear();
                 }
             }
 
@@ -754,32 +760,32 @@ uint8_t CharToHex( char a_value )
     }
 }
 
-uint32_t UriDecode( String &a_uri, String &a_ext )
+uint32_t UriDecode( ::std::string &a_uri, ::std::string &a_ext )
 {
-    String newUri;
+    ::std::string newUri;
     uint32_t changes = 0;
 
-    for( uint32_t i = 0; i < a_uri.Length(); ++i )
+    for( uint32_t i = 0; i < a_uri.length(); ++i )
     {
         switch( a_uri[ i ] )
         {
             case '/':
             case '\\':
-                a_ext.Clear();
-                if( ( newUri.Length() > 0 ) && ( '/' != newUri[ newUri.Length() - 1 ] ) )
+                a_ext.clear();
+                if( ( newUri.length() > 0 ) && ( '/' != newUri[ newUri.length() - 1 ] ) )
                 {
                     newUri += '/';
                 }
                 break;
             case '.':
                 a_ext = '.';
-                if( ( newUri.Length() > 0 ) && ( '.' != newUri[ newUri.Length() - 1 ] ) )
+                if( ( newUri.length() > 0 ) && ( '.' != newUri[ newUri.length() - 1 ] ) )
                 {
                     newUri += '.';
                 }
                 break;
             case '%':
-                if( i < ( uint32_t )( a_uri.Length() - 2 ) )
+                if( i < ( uint32_t )( a_uri.length() - 2 ) )
                 {
                     char a = CharToHex( a_uri[ i + 1 ] );
                     char b = CharToHex( a_uri[ i + 2 ] );
@@ -796,50 +802,50 @@ uint32_t UriDecode( String &a_uri, String &a_ext )
                 if( ( a_uri[ i ] >= ' ' ) && ( a_uri[ i ] < '~' ) )
                 {
                     newUri += a_uri[ i ];
-                    if( a_ext.Length() > 0 )
+                    if( a_ext.length() > 0 )
                     {
                         a_ext += a_uri[ i ];
                     }
                 }
                 else
                 {
-                    a_ext.Clear();
+                    a_ext.clear();
                 }
                 break;
         }
     }
-    a_ext.ToLower();
+    Tokens::MakeLower( a_ext );
     a_uri = newUri;
 
     return changes;
 }
 
-bool UriDecode( String &a_base, String &a_defaultDoc, String &a_uri, String &a_ext )
+bool UriDecode( ::std::string &a_base, ::std::string &a_defaultDoc, ::std::string &a_uri, ::std::string &a_ext )
 {
-    printf( " [*] Decoding: [%s]%s\n", ( const char * )a_base, ( const char * )a_uri );
+    printf( " [*] Decoding: [%s]%s\n", a_base.c_str(), a_uri.c_str() );
     while( UriDecode( a_uri, a_ext ) != 0 );
 
-    String newUri;
-    newUri = a_base.Value();
-    if( ( newUri.Length() > 0 ) && ( '/' != newUri[ newUri.Length() - 1 ] ) )
+    ::std::string newUri;
+    newUri = a_base;
+    if( ( newUri.length() > 0 ) && ( '/' != newUri[ newUri.length() - 1 ] ) )
     {
         newUri += '/';
     }
     newUri += a_uri;
-    if( ( newUri.Length() > 0 ) && ( '/' == newUri[ newUri.Length() - 1 ] ) )
+    if( ( newUri.length() > 0 ) && ( '/' == newUri[ newUri.length() - 1 ] ) )
     {
         while( UriDecode( a_defaultDoc, a_ext ) != 0 );
         newUri += a_defaultDoc;
     }
-    if( !a_ext )
+    if( a_ext.length() == 0 )
     {
         a_ext = "none";
     }
     a_uri = newUri;
 
-    if( a_uri && a_ext )
+    if( a_uri.length() > 0 )
     {
-        printf( " [*] Decoded:  %s [%s]\n", ( const char * )a_uri, ( const char * )a_ext );
+        printf( " [*] Decoded:  %s [%s]\n", a_uri.c_str(), a_ext.c_str() );
         return true;
     }
     printf( " [!] URI decode failed!\n" );

@@ -9,24 +9,20 @@
 
 namespace utils
 {
-    LogFile::LogFile( String &a_file )
-    : m_file( a_file )
-    {}
-
     LogFile::LogFile( const char *a_file )
     : m_file( a_file )
     {}
 
-    bool LogFile::Log( String &a_message, bool a_timestamp /*= true*/, bool a_newline /*= true*/ )
+    bool LogFile::Log( ::std::string &a_message, bool a_timestamp /*= true*/, bool a_newline /*= true*/ )
     {
         ::utils::Lock lock( this );
         time_t rawtime;
         struct tm *timeinfo = nullptr;
-        if( m_file.Length() == 0 )
+        if( m_file.length() == 0 )
         {
             return false;
         }
-        FILE *output = fopen( m_file.Value(), "a+" );
+        FILE *output = fopen( m_file.c_str(), "a+" );
         if( !output )
         {
             return false;
@@ -40,7 +36,7 @@ namespace utils
             }
             time( &rawtime );
             timeinfo = localtime( &rawtime );
-            if( ( a_message.Length() > 0 ) || !a_newline )
+            if( ( a_message.length() > 0 ) || !a_newline )
             {
                 strftime( buffer, sizeof( buffer ), "%F %T (%Z) - ", timeinfo );
             }
@@ -50,9 +46,9 @@ namespace utils
             }
             fputs( buffer, output );
         }
-        if( a_message.Length() > 0 )
+        if( a_message.length() > 0 )
         {
-            fputs( a_message.Value(), output );
+            fputs( a_message.c_str(), output );
         }
         if( a_newline )
         {
@@ -66,7 +62,7 @@ namespace utils
     bool LogFile::Log( const char *a_value, bool a_timestamp /*= true*/, bool a_newline /*= true*/ )
     {
         ::utils::Lock lock( this );
-        String data( a_value );
+        ::std::string data( a_value );
         return Log( data, a_timestamp, a_newline );
     }
 

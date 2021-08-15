@@ -10,7 +10,8 @@
 
 #include <utils/Types.hpp>
 #include <utils/Readable.hpp>
-#include <utils/String.hpp>
+#include <utils/Writable.hpp>
+#include <string>
 
 namespace utils
 {
@@ -75,6 +76,48 @@ namespace utils
                 return ( ( a_c < static_cast< uint8_t >( ' ' ) ) || ( a_c > static_cast< uint8_t >( '~' ) ) );
             }
 
+            static void TrimSpace( ::std::string &a_string )
+            {
+                ::std::string temp;
+                for( size_t i = 0; i < a_string.length(); ++i )
+                {
+                    if( ( temp.length() == 0 ) && IsSpace( a_string[ i ] ) )
+                    {
+                        continue;
+                    }
+                    temp += a_string[ i ];
+                }
+                while( ( temp.length() > 0 ) && IsSpace( temp[ temp.length() - 1 ] ) )
+                {
+                    temp.pop_back();
+                }
+                a_string = temp;
+            }
+
+            static void MakeUpper( ::std::string &a_string )
+            {
+                for( size_t i = 0; i < a_string.length(); ++i )
+                {
+                    if( ( a_string[ i ] >= 'a' ) && ( a_string[ i ] <= 'z' ) )
+                    {
+                        a_string[ i ] -= 'a';
+                        a_string[ i ] += 'A';
+                    }
+                }
+            }
+
+            static void MakeLower( ::std::string &a_string )
+            {
+                for( size_t i = 0; i < a_string.length(); ++i )
+                {
+                    if( ( a_string[ i ] >= 'A' ) && ( a_string[ i ] <= 'Z' ) )
+                    {
+                        a_string[ i ] -= 'A';
+                        a_string[ i ] += 'a';
+                    }
+                }
+            }
+
             /**
                 This function reads a token out of the provided buffer
                 and writes it into the provided token.  If the optional
@@ -83,15 +126,15 @@ namespace utils
                 is made to determine the token delineation based on
                 content.
             */
-            static TokenType GetToken( Readable &a_input, String   &a_token, char a_delim = 0 );
-            static TokenType GetLine ( Readable &a_input, String   &a_token );
+            static TokenType GetToken( Readable &a_input, ::std::string &a_token, char a_delim = 0 );
+            static TokenType GetLine ( Readable &a_input, ::std::string &a_token );
             static TokenType GetLine ( Readable &a_input, Writable &a_output );
 
             /**
-                This function escapes an input String for use in JSON formatted data.
+                This function escapes an input ::std::string for use in JSON formatted data.
                 Note: a_input must not be the same string as a_output.
             */
-            static String &EscapeJson( String &a_input, String &a_output );
+            static ::std::string &EscapeJson( ::std::string &a_input, ::std::string &a_output );
     };
 }
 

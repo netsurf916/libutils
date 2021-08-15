@@ -8,8 +8,7 @@
 #ifndef _BITMASK_HPP_
 #define _BITMASK_HPP_
 
-#include <utils/Serializable.hpp>
-#include <utils/Primitive.hpp>
+#include <utils/Lockable.hpp>
 
 #ifndef BIT
 #define BIT(n) ( 1 << n )
@@ -17,7 +16,7 @@
 
 namespace utils
 {
-    class BitMask : public Serializable
+    class BitMask : public Lockable
     {
         public:
             BitMask();
@@ -32,13 +31,8 @@ namespace utils
             bool     GetBit     ( uint8_t a_bit, bool &a_set );
             bool     IsSet      ( uint8_t a_bit );
 
-            // Serializable functions
-            uint8_t  Type() noexcept final;
-            bool     Serialize  ( Writable &a_out ) noexcept final;
-            bool     Deserialize( Readable &a_in  ) noexcept final;
-
         private:
-            Primitive< uint32_t > m_bitMask;
+            uint32_t m_bitMask;
     };
 }
 

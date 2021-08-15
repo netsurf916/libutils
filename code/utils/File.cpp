@@ -17,14 +17,6 @@ namespace utils
     {
     }
 
-    File::File( String &a_fileName, uint32_t a_mode /*= FileMode::DefaultRead*/ )
-    : m_fileName( a_fileName )
-    , m_mode( a_mode )
-    , m_file( nullptr )
-    , m_ready( true )
-    {
-    }
-
     File::File( const char *a_fileName, uint32_t a_mode /*= FileMode::DefaultRead*/ )
     : m_fileName( a_fileName )
     , m_mode( a_mode )
@@ -39,7 +31,7 @@ namespace utils
         Close();
     }
 
-    String &File::Name()
+    ::std::string &File::Name()
     {
         ::utils::Lock( this );
         return m_fileName;
@@ -48,93 +40,7 @@ namespace utils
     File::operator const char *()
     {
         ::utils::Lock( this );
-        return ( const char * )m_fileName;
-    }
-
-    uint8_t File::Type() noexcept
-    {
-        return static_cast< uint8_t >( SerializableType::File );
-    }
-
-    bool File::Serialize( Writable &a_out ) noexcept
-    {
-        ::utils::Lock lock( this );
-        ::utils::Lock valueLock( &a_out );
-        bool ok = m_ready && SerializeType( a_out );
-        ok = ok && m_fileName.Serialize( a_out );
-        uint64_t length = ToNetwork( static_cast< uint64_t >( Size() ) );
-        ok = ok && ( sizeof( length ) == a_out.Write( ( const uint8_t * )&length,   sizeof( length ) ) );
-        if( ok && ( length > 0 ) )
-        {
-            uint32_t mode = m_mode;
-            SetMode( FileMode::DefaultRead );
-            ok = Seek( 0 );
-            uint8_t *data = new uint8_t[ 1024 ];
-            if( nullptr != data )
-            {
-                length = FromNetwork( length );
-                while( ok && ( length > 0 ) )
-                {
-                    uint32_t read = Read( data, ( length < 1024 )? length : 1024 );
-                    if( 0 == read )
-                    {
-                        ok = false;
-                    }
-                    else if( read != a_out.Write( data, read ) )
-                    {
-                        ok = false;
-                    }
-                    length -= read;
-                }
-                memset( data, 0, 1024 );
-                delete [] data;
-                data = nullptr;
-            }
-            SetMode( mode );
-        }
-        return ok;
-    }
-
-    bool File::Deserialize( Readable &a_in ) noexcept
-    {
-        ::utils::Lock lock( this );
-        ::utils::Lock valueLock( &a_in );
-        bool ok = m_ready && DeserializeType( a_in );
-        ok = ok && m_fileName.Deserialize( a_in );
-        uint64_t length = 0;
-        ok = ok && ( sizeof( length ) == a_in.Read( ( uint8_t * )&length, sizeof( length ) ) );
-        if( ok )
-        {
-            length = FromNetwork( length );
-        }
-        if( ok && ( length > 0 ) )
-        {
-            uint32_t mode = m_mode;
-            SetMode( FileMode::DefaultWrite );
-            ok = Seek( 0 );
-            uint8_t *data = new uint8_t[ 1024 ];
-            if( nullptr != data )
-            {
-                while( ok && ( length > 0 ) )
-                {
-                    uint32_t read = a_in.Read( data, ( length < 1024 )? length : 1024 );
-                    if( 0 == read )
-                    {
-                        ok = false;
-                    }
-                    else if( read != Write( data, read ) )
-                    {
-                        ok = false;
-                    }
-                    length -= read;
-                }
-                memset( data, 0, 1024 );
-                delete [] data;
-                data = nullptr;
-            }
-            SetMode( mode );
-        }
-        return ok;
+        return m_fileName.c_str();
     }
 
     void File::SetMode( uint32_t a_mode /*= FileMode::DefaultRead*/ )
@@ -449,9 +355,9 @@ namespace utils
     bool File::Delete()
     {
         ::utils::Lock lock( this );
-        if( m_fileName )
+        if( m_fileName.length() > 0 )
         {
-            return ( Close() && ( 0 == remove( m_fileName ) ) );
+            return ( Close() && ( 0 == remove( m_fileName.c_str() ) ) );
         }
         return false;
     }
@@ -487,7 +393,7 @@ namespace utils
         //
         // To enforce these modes, an order of precedence
         // will be used: 'r', 'w', 'a' followed by 'b' then '+'
-        String mode;
+        ::std::string mode;
 
         // Set either read, write, or append
         if( FileMode::Read == ( m_mode & FileMode::Read ) )
@@ -515,12 +421,12 @@ namespace utils
             mode += '+';
         }
 
-        if( !m_ready || !m_fileName || !mode )
+        if( !m_ready || ( m_fileName.length() <= 0 ) || ( mode.length() <= 0 ) )
         {
             return false;
         }
 
-        m_file = fopen( m_fileName, mode );
+        m_file = fopen( m_fileName.c_str(), mode.c_str() );
         return ( nullptr != m_file );
     }
 }

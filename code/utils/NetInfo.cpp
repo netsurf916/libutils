@@ -97,27 +97,23 @@ namespace utils
     {
     }
 
-    String &NetInfo::Name()
+    ::std::string &NetInfo::Name()
     {
-        ::utils::Lock lock( this );
         return m_name;
     }
 
-    String &NetInfo::Address()
+    ::std::string &NetInfo::Address()
     {
-        ::utils::Lock lock( this );
         return m_address;
     }
 
-    String &NetInfo::NetMask()
+    ::std::string &NetInfo::NetMask()
     {
-        ::utils::Lock lock( this );
         return m_netmask;
     }
 
-    String &NetInfo::Broadcast()
+    ::std::string &NetInfo::Broadcast()
     {
-        ::utils::Lock lock( this );
         return m_broadcast;
     }
 
@@ -145,13 +141,11 @@ namespace utils
 
     ::std::shared_ptr< NetInfo > &NetInfo::Prev()
     {
-        ::utils::Lock lock( this );
         return m_prev;
     }
 
     ::std::shared_ptr< NetInfo > &NetInfo::Next()
     {
-        ::utils::Lock lock( this );
         return m_next;
     }
 
@@ -159,8 +153,9 @@ namespace utils
     {
         return( ( IsIPv4() || IsIPv6() )
                 && IsUp()
-                && Name() && Address()
-                && NetMask() && Broadcast() );
+                && ( Name().length() > 0 ) && ( Address().length() > 0 )
+                && ( NetMask().length() > 0 )
+                && ( Broadcast().length() > 0 ) );
     }
 
     ::std::shared_ptr< NetInfo > NetInfo::GetInterfaces()
@@ -197,38 +192,5 @@ namespace utils
         }
 
         return netInfo;
-    }
-
-    uint8_t NetInfo::Type() noexcept
-    {
-        return static_cast< uint8_t >( SerializableType::NetInfo );
-    }
-
-    bool NetInfo::Serialize( Writable &a_out ) noexcept
-    {
-        ::utils::Lock lock( this );
-        ::utils::Lock valueLock( &a_out );
-        bool ok = SerializeType( a_out );
-        ok = ok && m_flags.Serialize( a_out );
-        ok = ok && m_name.Serialize( a_out );
-        ok = ok && m_address.Serialize( a_out );
-        ok = ok && m_netmask.Serialize( a_out );
-        ok = ok && m_broadcast.Serialize( a_out );
-        ok = ok && m_family.Serialize( a_out );
-        return ok;
-    }
-
-    bool NetInfo::Deserialize( Readable &a_in  ) noexcept
-    {
-        ::utils::Lock lock( this );
-        ::utils::Lock valueLock( &a_in );
-        bool ok = DeserializeType( a_in );
-        ok = ok && m_flags.Deserialize( a_in );
-        ok = ok && m_name.Deserialize( a_in );
-        ok = ok && m_address.Deserialize( a_in );
-        ok = ok && m_netmask.Deserialize( a_in );
-        ok = ok && m_broadcast.Deserialize( a_in );
-        ok = ok && m_family.Deserialize( a_in );
-        return ok;
     }
 }

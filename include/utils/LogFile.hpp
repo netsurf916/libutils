@@ -10,23 +10,21 @@
 
 #include <utils/Types.hpp>
 #include <utils/Lock.hpp>
-#include <utils/String.hpp>
 
 namespace utils
 {
     class LogFile : public Lockable
     {
         private:
-            String m_file;
+            ::std::string m_file;
 
         public:
-            LogFile( String &a_file );
             LogFile( const char *a_file );
 
-            bool Log( String &a_message, bool a_timestamp = true, bool a_newline = true );
-            bool Log( const char   *a_value, bool a_timestamp = true, bool a_newline = true );
-            bool Log( const int32_t  &a_value, bool a_timestamp = true, bool a_newline = true );
-            bool Log( const uint32_t &a_value, bool a_timestamp = true, bool a_newline = true );
+            bool Log( ::std::string  &a_message, bool a_timestamp = true, bool a_newline = true );
+            bool Log( const char     *a_value,   bool a_timestamp = true, bool a_newline = true );
+            bool Log( const int32_t  &a_value,   bool a_timestamp = true, bool a_newline = true );
+            bool Log( const uint32_t &a_value,   bool a_timestamp = true, bool a_newline = true );
 
             ~LogFile();
     };
