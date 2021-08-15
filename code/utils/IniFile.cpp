@@ -245,7 +245,7 @@ namespace utils
             {
                 return false;
             }
-            Tokens::MakeUpper( heading ); printf("Heading: %s\n", heading.c_str());
+            Tokens::MakeUpper( heading );
             ::std::shared_ptr< IniFileHeading > start = m_heading;
             while( start && ( start->Name() != heading ) )
             {
