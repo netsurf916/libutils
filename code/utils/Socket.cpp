@@ -177,9 +177,10 @@ namespace utils
             return false;
         }
         ::utils::Lock lock( this );
-        uint8_t data = 0;
+        uint8_t  data    = 0;
+        uint32_t timeout = 1000;
         bool done = !Valid();
-        while( !done )
+        while( !done && ( timeout > 0 ) )
         {
             int32_t result = recv( m_sockfd, &data, sizeof( data ), MSG_PEEK | MSG_DONTWAIT );
             if( result > 0 || ( ( 0 == result ) && a_block ) )
@@ -230,7 +231,11 @@ namespace utils
             }
             else if( result == 0 )
             {
-                usleep( 500 );
+                usleep( 1000 );
+                if( !a_block )
+                {
+                    --timeout;
+                }
             }
             if( result < 0 )
             {

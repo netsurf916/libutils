@@ -128,7 +128,7 @@ int main( int argc, char *argv[] )
                 }
                 if( !found )
                 {
-                    usleep( 1000 );
+                    usleep( 12500 );
                 }
             }
             printf( " [+] Client thread started\n" );
@@ -232,7 +232,7 @@ class HttpRequest : public Lockable
         {
             utils::Lock lock( this );
             utils::Lock valueLock( &a_socket );
-            uint32_t    timeout = 10000;
+            uint32_t    timeout = 1000;
             uint32_t    count = 0;
             ::std::string      token;
 
@@ -273,7 +273,7 @@ class HttpRequest : public Lockable
                                     break;
                                 }
                                 --timeout;
-                                usleep( 1000 );
+                                usleep( 10000 );
                                 continue;
                             }
                             uint8_t data = 0;
@@ -314,7 +314,7 @@ class HttpRequest : public Lockable
                     if( ( count < 100 ) && ( Tokens::GetToken( *recvb, token, ':' ) == TokenTypes::Delineated ) )
                     {
                         ++count;
-                        ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > temp = ::std::make_shared< KeyValuePair< ::std::string, ::std::string > >();
+                        auto temp = ::std::make_shared< KeyValuePair< ::std::string, ::std::string > >();
                         if( temp )
                         {
                             temp->Key() = token;
@@ -330,15 +330,14 @@ class HttpRequest : public Lockable
                                 }
                                 if( temp->Key() == "RANGE" )
                                 {
-                                    ::std::shared_ptr< Buffer > range =
-                                        ::std::make_shared< Buffer >( temp->Value().length() );
+                                    auto range = ::std::make_shared< Buffer >( temp->Value().length() );
                                     if( range )
                                     {
                                         range->Write( ( const uint8_t * ) temp->Value().c_str(), temp->Value().length() );
                                         m_start = -1;
                                         m_end = -1;
                                         int negative = 0;
-                                        while( Tokens::GetToken( *range, token ) )
+                                        while( Tokens::GetToken( *range, token ) != TokenTypes::NotFound )
                                         {
                                             ::std::string token_upper( token );
                                             Tokens::MakeUpper( token_upper );
@@ -415,11 +414,10 @@ class HttpRequest : public Lockable
         {
             utils::Lock    lock( this );
             utils::Lock    valueLock( &a_socket );
-            ::std::shared_ptr< Buffer > sendb =
-                ::std::make_shared< Buffer >( 2048 );
-            ::std::shared_ptr< File > file = ::std::make_shared< File >( a_fileName.c_str() );
+            auto sendb = ::std::make_shared< Buffer >( 2048 );
+            auto file  = ::std::make_shared< File >( a_fileName.c_str() );
 
-            if( !a_socket.Valid() || !sendb || !file || !file->Exists() )
+            if( !a_socket.Valid() || !sendb || !file || ( ( ( m_method == "HEAD" ) || ( m_method == "GET" ) ) && !file->Exists() ) )
             {
                 if( a_socket.Valid() && sendb )
                 {
