@@ -55,7 +55,7 @@ namespace utils
             bool    Valid();
             bool    Accept( int32_t &a_client );
             int32_t LastError();
-            bool    ReadLine( ::std::shared_ptr< Buffer > &a_buffer, bool a_block = false );
+            bool    ReadLine( ::std::shared_ptr< Buffer > &a_buffer, uint32_t a_timeout = 1000 );
             bool    GetRemoteAddress( ::std::string &a_address, uint32_t &a_port );
             void    Shutdown();
 

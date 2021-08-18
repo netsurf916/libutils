@@ -170,44 +170,28 @@ namespace utils
         return m_error;
     }
 
-    bool Socket::ReadLine( ::std::shared_ptr< Buffer > &a_buffer, bool a_block /*= false*/ )
+    bool Socket::ReadLine( ::std::shared_ptr< Buffer > &a_buffer, const uint32_t a_timeout /* = 1000 */ )
     {
         if( !a_buffer )
         {
             return false;
         }
         ::utils::Lock lock( this );
-        uint8_t  data    = 0;
-        uint32_t timeout = 1000;
+        uint8_t data = 0;
+        uint32_t timeout = a_timeout;
         bool done = !Valid();
-        while( !done && ( timeout > 0 ) )
+        while( !done && ( a_timeout > 0 ) )
         {
             int32_t result = recv( m_sockfd, &data, sizeof( data ), MSG_PEEK | MSG_DONTWAIT );
-            if( result > 0 || ( ( 0 == result ) && a_block ) )
+            if( ( result > 0 ) && ( a_buffer->Space() > 0 ) )
             {
-                if( ( 0 == a_buffer->Space() ) )
-                {
-                    if( a_block )
-                    {
-                        usleep( 500 );
-                        continue;
-                    }
-                    break;
-                }
-                if( 0 == a_buffer->Space() )
-                {
-                    if( a_block )
-                    {
-                        continue;
-                    }
-                    break;
-                }
+                timeout = a_timeout;
                 result = recv( m_sockfd, &data, sizeof( data ), 0 );
                 if( result > 0 )
                 {
                     switch( data )
                     {
-                        case '\n': // Handle \n and \n\r
+                        case '\n': // Handle '\n' and "\n\r"
                             result = recv( m_sockfd, &data, sizeof( data ), MSG_PEEK | MSG_DONTWAIT );
                             if( ( result > 0 ) && ( data == '\r' ) )
                             {
@@ -215,7 +199,7 @@ namespace utils
                             }
                             done = true;
                             break;
-                        case '\r': // Handle \r and \r\n
+                        case '\r': // Handle '\r' and "\r\n"
                             result = recv( m_sockfd, &data, sizeof( data ), MSG_PEEK | MSG_DONTWAIT );
                             if( ( result > 0 ) && ( data == '\n' ) )
                             {
@@ -229,13 +213,10 @@ namespace utils
                     }
                 }
             }
-            else if( result == 0 )
+            else if( result >= 0 )
             {
                 usleep( 1000 );
-                if( !a_block )
-                {
-                    --timeout;
-                }
+                --timeout;
             }
             if( result < 0 )
             {
@@ -246,6 +227,10 @@ namespace utils
                     Shutdown();
                 }
             }
+        }
+        if( timeout == 0 )
+        {
+            m_error = ETIMEDOUT;
         }
         return done;
     }
