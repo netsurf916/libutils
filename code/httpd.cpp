@@ -327,6 +327,11 @@ class HttpRequest : public Lockable
                                 if( temp->Key() == "CONTENT-LENGTH" )
                                 {
                                     m_length = ::std::stoi( temp->Value() );
+                                    // Truncate data to 4k bytes
+                                    if( m_length > 4096 )
+                                    {
+                                        m_length = 4096;
+                                    }
                                 }
                                 if( temp->Key() == "RANGE" )
                                 {
@@ -598,7 +603,7 @@ class HttpRequest : public Lockable
         {
             utils::Lock  lock( this );
             utils::Lock  valueLock( &a_logger );
-            char                  buffer[ 32 ];
+            char buffer[ 32 ];
             ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > start = m_meta;
 
             snprintf( buffer, sizeof( buffer ), "%u", m_port );
@@ -629,7 +634,7 @@ class HttpRequest : public Lockable
                 a_logger.Log( m_host, true, false );
                 a_logger.Log( ":", false, false );
                 a_logger.Log( buffer, false, false );
-                a_logger.Log( " - ", false, true );
+                a_logger.Log( " - ", false, false );
                 a_logger.Log( m_body, false, true );
             }
         }
