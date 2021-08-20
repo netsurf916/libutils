@@ -230,11 +230,11 @@ class HttpRequest : public Lockable
 
         bool Read( Socket &a_socket )
         {
-            utils::Lock lock( this );
-            utils::Lock valueLock( &a_socket );
-            uint32_t    timeout = 1000;
-            uint32_t    count = 0;
-            ::std::string      token;
+            utils::Lock   lock( this );
+            utils::Lock   valueLock( &a_socket );
+            uint32_t      timeout = 100;
+            uint32_t      count = 0;
+            ::std::string token;
 
             ::std::shared_ptr< Buffer > recvb = ::std::make_shared< Buffer >( 2048 );
 
@@ -256,22 +256,23 @@ class HttpRequest : public Lockable
             // Get the HTTP request
             while( a_socket.Valid() && ( timeout > 0 ) )
             {
-                a_socket.ReadLine( recvb );
+                if( !a_socket.ReadLine( recvb ) )
+                {
+                    --timeout;
+                    usleep( 10000 );
+                    continue;
+                }
                 if( 0 == recvb->Length() )
                 {
                     // Get more if there is data involved
                     if( m_length > 0 )
                     {
                         recvb->Clear();
-                        while( a_socket.Valid() )
+                        timeout = 100;
+                        while( ( timeout > 0 ) && a_socket.Valid() )
                         {
                             if( !a_socket.Read( recvb ) )
                             {
-                                if( 0 == timeout )
-                                {
-                                    m_timeout = true;
-                                    break;
-                                }
                                 --timeout;
                                 usleep( 10000 );
                                 continue;
@@ -305,6 +306,15 @@ class HttpRequest : public Lockable
                                 m_version = token;
                                 Tokens::MakeUpper( m_version );
                             }
+                            else
+                            {
+                                m_method.clear();
+                                m_uri.clear();
+                            }
+                        }
+                        else
+                        {
+                            m_method.clear();
                         }
                     }
                 }
@@ -412,7 +422,8 @@ class HttpRequest : public Lockable
                     }
                 }
             }
-            return ( ( timeout > 0 ) && ( m_method.length() > 0 ) && ( m_uri.length() > 0 ) && ( m_version.length() > 0 ) );
+            m_timeout = ( timeout <= 0 );
+            return ( !m_timeout && ( m_method.length() > 0 ) && ( m_uri.length() > 0 ) && ( m_version.length() > 0 ) );
         }
 
         int32_t Respond( Socket &a_socket, ::std::string &a_fileName, ::std::string &a_type )
