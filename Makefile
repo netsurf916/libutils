@@ -11,10 +11,10 @@ LIBS        = -lutils -lpthread
 LIBPATHS    = -L./ -L/usr/local/lib/
 
 SRCDIR      = code/utils/
-OBJECTS     = $(SRCDIR)BitMask.o $(SRCDIR)File.o    $(SRCDIR)Lockable.o \
-              $(SRCDIR)LogFile.o $(SRCDIR)NetInfo.o $(SRCDIR)Tokens.o   \
-              $(SRCDIR)Types.o   $(SRCDIR)Buffer.o  $(SRCDIR)IniFile.o  \
-              $(SRCDIR)Lock.o    $(SRCDIR)Socket.o
+OBJECTS     = $(SRCDIR)BitMask.o $(SRCDIR)File.o    $(SRCDIR)Lockable.o    \
+              $(SRCDIR)LogFile.o $(SRCDIR)NetInfo.o $(SRCDIR)Tokens.o      \
+              $(SRCDIR)Types.o   $(SRCDIR)Buffer.o  $(SRCDIR)IniFile.o     \
+              $(SRCDIR)Lock.o    $(SRCDIR)Socket.o  $(SRCDIR)HttpRequest.o
 
 INCDIR      = include/utils/
 HEADERS     = $(INCDIR)BitMask.hpp       $(INCDIR)IniFile.hpp      \
@@ -25,7 +25,7 @@ HEADERS     = $(INCDIR)BitMask.hpp       $(INCDIR)IniFile.hpp      \
               $(INCDIR)Socket.hpp        $(INCDIR)Thread.hpp       \
               $(INCDIR)Writable.hpp      $(INCDIR)Utils.hpp        \
               $(INCDIR)File.hpp          $(INCDIR)Lockable.hpp     \
-              $(INCDIR)Readable.hpp
+              $(INCDIR)Readable.hpp      $(INCDIR)HttpRequest.hpp
 
 libutils.a: $(OBJECTS) $(HEADERS) Makefile
 	ar rcs libutils.a $(OBJECTS)
