@@ -183,7 +183,7 @@ void *ProcessClient( void *a_client )
     utils::Lock *lock = new Lock( context );
 
     printf( " [+] Processing client\n" );
-    while( context->socket->Valid() && httpRequest->Read( *( context->socket ) ) )
+    if( context->socket->Valid() && httpRequest->Read( *( context->socket ) ) )
     {
         printf( " [+] Got HTTP request\n" );
         ::std::shared_ptr< ::std::string > fileName   = ::std::make_shared< ::std::string >();
@@ -217,7 +217,7 @@ void *ProcessClient( void *a_client )
 
             if( *mimeType == "internal" )
             {
-                *mimeType = "";
+                *mimeType = "text/plain";
                 ::std::string operation = *fileName;
                 auto start = operation.rfind( '/' );
                 auto end   = operation.rfind( '.' );
@@ -228,7 +228,7 @@ void *ProcessClient( void *a_client )
                     printf( " [@] Internal operation: %s\n", operation.c_str() );
                     if( "ip" == operation )
                     {
-                        *mimeType = "text/plain";
+                        // Reuse mime type: "text/plain"
                         httpRequest->Response() += *host;
                     }
                     else if( "request" == operation )
