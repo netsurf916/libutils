@@ -217,6 +217,7 @@ void *ProcessClient( void *a_client )
 
             if( *mimeType == "internal" )
             {
+                *mimeType = "";
                 ::std::string operation = *fileName;
                 auto start = operation.rfind( '/' );
                 auto end   = operation.rfind( '.' );
@@ -227,10 +228,12 @@ void *ProcessClient( void *a_client )
                     printf( " [@] Internal operation: %s\n", operation.c_str() );
                     if( "ip" == operation )
                     {
+                        *mimeType = "text/plain";
                         httpRequest->Response() += *host;
                     }
                     else if( "request" == operation )
                     {
+                        *mimeType = "text/html";
                         ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > meta = httpRequest->Meta();
                         httpRequest->Response() += "<html>\n <head>\n  <title>Client Request</title>\n </head>\n<body>";
                         httpRequest->Response() += "Client: ";
