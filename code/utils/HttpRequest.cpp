@@ -38,6 +38,7 @@ namespace utils
         m_end     = -1;
         m_timeout = false;
         m_meta    = NULL;
+        m_response.clear();
     }
 
     ::std::string &HttpRequest::Uri()
@@ -52,6 +53,12 @@ namespace utils
         return m_method;
     }
 
+    ::std::string &HttpRequest::Version()
+    {
+        utils::Lock lock( this );
+        return m_version;
+    }
+
     ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > &HttpRequest::Meta()
     {
         utils::Lock lock( this );
@@ -60,7 +67,7 @@ namespace utils
 
     ::std::string HttpRequest::Host()
     {
-        utils::Lock  lock( this );
+        utils::Lock lock( this );
         ::std::string host;
         ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > start = m_meta;
         while( start )
@@ -73,6 +80,12 @@ namespace utils
             start = start->Next();
         }
         return host;
+    }
+
+    ::std::string &HttpRequest::Response()
+    {
+        utils::Lock lock( this );
+        return m_response;
     }
 
     bool HttpRequest::Read( Socket &a_socket )
@@ -280,7 +293,7 @@ namespace utils
         auto sendb = ::std::make_shared< Buffer >( 2048 );
         auto file  = ::std::make_shared< File >( a_fileName.c_str() );
 
-        if( !a_socket.Valid() || !sendb || !file || ( ( ( m_method == "HEAD" ) || ( m_method == "GET" ) ) && !file->Exists() ) )
+        if( !a_socket.Valid() || !sendb || !file || ( ( ( m_method == "HEAD" ) || ( m_method == "GET" ) ) && ( !file->Exists() && ( m_response.length() == 0 ) ) ) )
         {
             if( a_socket.Valid() && sendb )
             {
@@ -303,19 +316,25 @@ namespace utils
             while( a_socket.Write( sendb ) );
             return 408;
         }
-        else if( ( ( m_method == "HEAD" ) ||
-                    ( m_method == "GET" ) ) &&
-                    ( ( m_version == "HTTP/1.1" ) ||
-                    ( m_version == "HTTP/1.0" ) ) )
+        else if( ( ( m_method  == "HEAD" ) ||
+                   ( m_method  == "GET" ) ) &&
+                 ( ( m_version == "HTTP/1.1" ) ||
+                   ( m_version == "HTTP/1.0" ) ) )
         {
-            if( a_type.length() )
+            if( a_type.length() > 0 )
             {
                 char buffer[ 4096 ];
+                // Partial content is only allowed for files, not internally generated content
                 if( ( m_method == "GET" ) && ( m_start >= 0 ) )
                 {
-                    if( m_end < m_start )
+                    if( file->Exists() && ( m_end < m_start ) )
                     {
                         m_end = file->Size() - 1;
+                    }
+                    else if( m_response.length() > 0 )
+                    {
+                        m_start = 0;
+                        m_end   = m_response.length() - 1;
                     }
                     sendb->Write( ( const uint8_t * )m_version.c_str(), m_version.length() );
                     sendb->Write( ( const uint8_t * )" 206 PARTIAL CONTENT\r\n" );
@@ -341,39 +360,57 @@ namespace utils
                     {
                         a_socket.Write( sendb );
                     }
-                    if( ( m_end >= m_start ) && file->Seek( m_start ) )
+                    if( file->Exists() )
                     {
-                        while( ( file->Position() < ( m_end + 1 ) ) && a_socket.Valid() )
+                        if( ( m_end >= m_start ) && file->Seek( m_start ) )
                         {
-                            uint32_t result = 0;
-                            if( ( ( m_end + 1 ) - file->Position() ) > ( int64_t )sizeof( buffer ) )
+                            while( ( file->Position() < ( m_end + 1 ) ) && a_socket.Valid() )
                             {
-                                result = file->Read( ( uint8_t * )buffer, sizeof( buffer ) );
-                            }
-                            else
-                            {
-                                result = file->Read( ( uint8_t * )buffer, ( m_end + 1 ) - file->Position() );
-                            }
-                            uint32_t total = 0;
-                            while( ( total < result ) && a_socket.Valid() )
-                            {
-                                total += sendb->Write( ( const uint8_t * )buffer + total, result - total );
-                                if( sendb->Length() > 0 )
+                                uint32_t result = 0;
+                                if( ( ( m_end + 1 ) - file->Position() ) > ( int64_t )sizeof( buffer ) )
                                 {
-                                    a_socket.Write( sendb );
+                                    result = file->Read( ( uint8_t * )buffer, sizeof( buffer ) );
+                                }
+                                else
+                                {
+                                    result = file->Read( ( uint8_t * )buffer, ( m_end + 1 ) - file->Position() );
+                                }
+                                uint32_t total = 0;
+                                while( ( total < result ) && a_socket.Valid() )
+                                {
+                                    total += sendb->Write( ( const uint8_t * )buffer + total, result - total );
+                                    if( sendb->Length() > 0 )
+                                    {
+                                        a_socket.Write( sendb );
+                                    }
                                 }
                             }
                         }
+                        while( sendb->Length() && a_socket.Valid() )
+                        {
+                            a_socket.Write( sendb );
+                        }
                     }
-                    while( sendb->Length() && a_socket.Valid() )
+                    else if( m_response.length() > 0 )
                     {
-                        a_socket.Write( sendb );
+                        uint32_t sent = 0;
+                        while( sent < m_response.length() )
+                        {
+                            sent += a_socket.Write( ( uint8_t * )( m_response.c_str() + sent ), static_cast< uint32_t >( m_response.length() - sent ) );
+                        }
                     }
                     return 206;
                 }
                 else
                 {
-                    snprintf( buffer, sizeof( buffer ), "%lu", file->Size() );
+                    if( file->Exists() )
+                    {
+                        snprintf( buffer, sizeof( buffer ), "%lu", file->Size() );
+                    }
+                    else if( m_response.length() > 0 )
+                    {
+                        snprintf( buffer, sizeof( buffer ), "%lu", m_response.length() );
+                    }
                     sendb->Write( ( const uint8_t * )m_version.c_str(), m_version.length() );
                     sendb->Write( ( const uint8_t * )" 200 OK\r\n" );
                     sendb->Write( ( const uint8_t * )"Content-type: " );
@@ -389,34 +426,45 @@ namespace utils
                     }
                     if( m_method == "GET" )
                     {
-                        while( ( ( file->Size() - file->Position() ) > 0 ) && a_socket.Valid() )
+                        if( file->Exists() )
                         {
-                            uint32_t result = 0;
-                            if( ( file->Size() - file->Position() ) > sizeof( buffer ) )
+                            while( ( ( file->Size() - file->Position() ) > 0 ) && a_socket.Valid() )
                             {
-                                result = file->Read( ( uint8_t * )buffer, sizeof( buffer ) );
-                            }
-                            else
-                            {
-                                result = file->Read( ( uint8_t * )buffer, file->Size() - file->Position() );
-                            }
-                            uint32_t total = 0;
-                            while( ( total < result ) && a_socket.Valid() )
-                            {
-                                if( result > 0 )
+                                uint32_t result = 0;
+                                if( ( file->Size() - file->Position() ) > sizeof( buffer ) )
                                 {
-                                    total += sendb->Write( ( const uint8_t * )buffer + total, result - total );
+                                    result = file->Read( ( uint8_t * )buffer, sizeof( buffer ) );
                                 }
-                                if( sendb->Length() > 0 )
+                                else
                                 {
-                                    a_socket.Write( sendb );
+                                    result = file->Read( ( uint8_t * )buffer, file->Size() - file->Position() );
                                 }
+                                uint32_t total = 0;
+                                while( ( total < result ) && a_socket.Valid() )
+                                {
+                                    if( result > 0 )
+                                    {
+                                        total += sendb->Write( ( const uint8_t * )buffer + total, result - total );
+                                    }
+                                    if( sendb->Length() > 0 )
+                                    {
+                                        a_socket.Write( sendb );
+                                    }
+                                }
+                            }
+                            while( sendb->Length() && a_socket.Valid() )
+                            {
+                                a_socket.Write( sendb );
                             }
                         }
-                    }
-                    while( sendb->Length() && a_socket.Valid() )
-                    {
-                        a_socket.Write( sendb );
+                        else if( m_response.length() > 0 )
+                        {
+                            uint32_t sent = 0;
+                            while( sent < m_response.length() )
+                            {
+                                sent += a_socket.Write( ( uint8_t * )( m_response.c_str() + sent ), static_cast< uint32_t >( m_response.length() - sent ) );
+                            }
+                        }
                     }
                     return 200;
                 }
@@ -444,23 +492,10 @@ namespace utils
         }
     }
 
-    void HttpRequest::Print()
-    {
-        utils::Lock  lock( this );
-        ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > start = m_meta;
-        printf( " [*] Remote: %s:%d\n", m_host.c_str(), m_port );
-        printf( " [>] %s %s %s\n", m_method.c_str(), m_uri.c_str(), m_version.c_str() );
-        while( start )
-        {
-            printf( " [>] %s: %s\n", start->Key().c_str(), start->Value().c_str() );
-            start = start->Next();
-        }
-    }
-
     void HttpRequest::Log( LogFile &a_logger )
     {
-        utils::Lock  lock( this );
-        utils::Lock  valueLock( &a_logger );
+        utils::Lock lock( this );
+        utils::Lock valueLock( &a_logger );
         char buffer[ 32 ];
         ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > start = m_meta;
 
@@ -588,7 +623,6 @@ namespace utils
 
     bool HttpHelpers::UriDecode( ::std::string &a_base, ::std::string &a_defaultDoc, ::std::string &a_uri, ::std::string &a_ext, ::std::string &a_defmime )
     {
-        printf( " [*] Decoding: [%s]%s\n", a_base.c_str(), a_uri.c_str() );
         while( HttpHelpers::UriDecode( a_uri, a_ext ) != 0 );
 
         ::std::string newUri;
@@ -611,10 +645,8 @@ namespace utils
 
         if( a_uri.length() > 0 )
         {
-            printf( " [*] Decoded:  %s [%s]\n", a_uri.c_str(), a_ext.c_str() );
             return true;
         }
-        printf( " [!] URI decode failed!\n" );
         return false;
     }
 }

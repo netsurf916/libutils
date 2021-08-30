@@ -24,6 +24,7 @@ namespace utils
             uint32_t      m_port;
             bool          m_timeout;
             ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > m_meta;
+            ::std::string m_response;
 
         public:
             HttpRequest();
@@ -33,13 +34,14 @@ namespace utils
 
             ::std::string &Uri();
             ::std::string &Method();
+            ::std::string &Version();
             ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > &Meta();
-            ::std::string Host();
+            ::std::string  Host();
+            ::std::string &Response();
 
             bool    Read( Socket &a_socket );
             int32_t Respond( Socket &a_socket, ::std::string &a_fileName, ::std::string &a_type );
 
-            void Print();
             void Log( LogFile &a_logger );
     };
 

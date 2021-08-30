@@ -29,7 +29,7 @@ struct ThreadCTX : public Lockable
 };
 
 void *ProcessClient( void *a_client );
-bool  UriDecode( ::std::string &a_base, ::std::string &a_defaultDoc, ::std::string &a_uri, ::std::string &a_ext );
+void  PrintHttpRequest( HttpRequest *a_request );
 
 int main( int argc, char *argv[] )
 {
@@ -152,9 +152,9 @@ int main( int argc, char *argv[] )
 
 void *ProcessClient( void *a_client )
 {
-    ThreadCTX   *context = ( ThreadCTX * ) a_client;
-    HttpRequest *httpRequest = new HttpRequest();
-    ::std::string      *host = new ::std::string();
+    ThreadCTX     *context     = ( ThreadCTX * ) a_client;
+    HttpRequest   *httpRequest = new HttpRequest();
+    ::std::string *host        = new ::std::string();
     uint32_t       port;
 
     if( ( NULL == context          ) ||
@@ -194,7 +194,8 @@ void *ProcessClient( void *a_client )
         if( fileName && fileType && mimeType && hostHome && defaultDoc )
         {
             int response = 0;
-            httpRequest->Print();
+            printf( " [*] Remote: %s:%d\n", host->c_str(), port );
+            PrintHttpRequest( httpRequest );
             httpRequest->Log( *( context->logger ) );
 
             if( ( context->settings->ReadValue( "path", httpRequest->Host().c_str(), *hostHome ) ||
@@ -206,11 +207,59 @@ void *ProcessClient( void *a_client )
                 *mimeType = DEFMIME;
                 // Decode the URI and lookup the matching mime-type or use the default
                 if( !HttpHelpers::UriDecode( *hostHome, *defaultDoc, *fileName, *fileType, *mimeType ) ||
-                    ( !context->settings->ReadValue( "mime-types", (*fileType).c_str(), *mimeType ) 
+                    ( !context->settings->ReadValue( "mime-types", fileType->c_str(), *mimeType ) 
                     && !context->settings->ReadValue( "mime-types", DEFMIME, *mimeType ) ) )
                 {
                     fileName->clear();
                     mimeType->clear();
+                }
+            }
+
+            if( *mimeType == "internal" )
+            {
+                ::std::string operation = *fileName;
+                auto start = operation.rfind( '/' );
+                auto end   = operation.rfind( '.' );
+                operation = operation.substr( start + 1, end - start - 1 );
+                if( operation.length() > 0 )
+                {
+                    Tokens::MakeLower( operation );
+                    printf( " [@] Internal operation: %s\n", operation.c_str() );
+                    if( "ip" == operation )
+                    {
+                        httpRequest->Response() += *host;
+                    }
+                    else if( "request" == operation )
+                    {
+                        ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > meta = httpRequest->Meta();
+                        httpRequest->Response() += "<html>\n <head>\n  <title>Client Request</title>\n </head>\n<body>";
+                        httpRequest->Response() += "Client: ";
+                        httpRequest->Response() += *host;
+                        httpRequest->Response() += ":";
+                        httpRequest->Response() += ::std::to_string( port );
+                        httpRequest->Response() += "<br><br>\n";
+                        httpRequest->Response() += httpRequest->Method();
+                        httpRequest->Response() += " ";
+                        httpRequest->Response() += httpRequest->Uri();
+                        httpRequest->Response() += " ";
+                        httpRequest->Response() += httpRequest->Version();
+                        httpRequest->Response() += "<br>\n";
+                        httpRequest->Response() += "<table>\n";
+                        while( meta )
+                        {
+                            httpRequest->Response() += " <tr>\n";
+                            httpRequest->Response() += "  <td>";
+                            httpRequest->Response() += meta->Key();
+                            httpRequest->Response() += "</td>\n";
+                            httpRequest->Response() += "  <td>";
+                            httpRequest->Response() += meta->Value();
+                            httpRequest->Response() += "</td>\n";
+                            httpRequest->Response() += " </tr>\n";
+                            meta = meta->Next();
+                        }
+                        httpRequest->Response() += "</table>\n";
+                        httpRequest->Response() += "</body></html>\n";
+                    }
                 }
             }
 
@@ -244,6 +293,8 @@ void *ProcessClient( void *a_client )
     }
     delete httpRequest;
     httpRequest = NULL;
+    delete host;
+    host = NULL;
 
     printf( " [+] Finished processing client\n" );
     context->socket->Shutdown();
@@ -252,3 +303,17 @@ void *ProcessClient( void *a_client )
     pthread_exit( NULL );
 }
 
+void PrintHttpRequest( HttpRequest *a_request )
+{
+    if( a_request == NULL )
+    {
+        return;
+    }
+    ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > start = a_request->Meta();
+    printf( " [+] %s %s %s\n", a_request->Method().c_str(), a_request->Uri().c_str(), a_request->Version().c_str() );
+    while( start )
+    {
+        printf( " [+] %s: %s\n", start->Key().c_str(), start->Value().c_str() );
+        start = start->Next();
+    }
+}
