@@ -29,7 +29,7 @@ struct ThreadCTX : public Lockable
 };
 
 void *ProcessClient( void *a_client );
-void  PrintHttpRequest( HttpRequest *a_request );
+void  PrintHttpRequest( ::std::shared_ptr< HttpRequest > &a_request );
 
 int main( int argc, char *argv[] )
 {
@@ -152,10 +152,10 @@ int main( int argc, char *argv[] )
 
 void *ProcessClient( void *a_client )
 {
-    ThreadCTX     *context     = ( ThreadCTX * ) a_client;
-    HttpRequest   *httpRequest = new HttpRequest();
-    ::std::string *host        = new ::std::string();
-    uint32_t       port;
+    ThreadCTX *context = ( ThreadCTX * ) a_client;
+    uint32_t   port    = 0;
+    ::std::shared_ptr< HttpRequest >   httpRequest = ::std::make_shared< HttpRequest >();
+    ::std::shared_ptr< ::std::string > host        = ::std::make_shared< ::std::string >();
 
     if( ( NULL == context          ) ||
        !( context->settings        ) ||
@@ -166,8 +166,6 @@ void *ProcessClient( void *a_client )
         ( NULL == host             ) )
     {
         printf( " [!] Client processing failed\n" );
-        if( httpRequest ) delete httpRequest;
-        if( host ) delete host;
         pthread_exit( NULL );
     }
 
@@ -183,7 +181,7 @@ void *ProcessClient( void *a_client )
     utils::Lock *lock = new Lock( context );
 
     printf( " [+] Processing client\n" );
-    if( context->socket->Valid() && httpRequest->Read( *( context->socket ) ) )
+    while( context->socket->Valid() && httpRequest->Read( *( context->socket ) ) )
     {
         printf( " [+] Got HTTP request\n" );
         ::std::shared_ptr< ::std::string > fileName   = ::std::make_shared< ::std::string >();
@@ -226,13 +224,16 @@ void *ProcessClient( void *a_client )
                 {
                     Tokens::MakeLower( operation );
                     printf( " [@] Internal operation: %s\n", operation.c_str() );
+                    context->logger->Log( "Internal operation: ", true, false );
                     if( "ip" == operation )
                     {
+                        context->logger->Log( operation.c_str(), false, true );
                         // Reuse mime type: "text/plain"
                         httpRequest->Response() += *host;
                     }
                     else if( "request" == operation )
                     {
+                        context->logger->Log( operation.c_str(), false, true );
                         *mimeType = "text/html";
                         ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > meta = httpRequest->Meta();
                         httpRequest->Response() += "<html>\n <head>\n  <title>Client Request</title>\n </head>\n<body>";
@@ -263,6 +264,10 @@ void *ProcessClient( void *a_client )
                         httpRequest->Response() += "</table>\n";
                         httpRequest->Response() += "</body></html>\n";
                     }
+                    else
+                    {
+                        context->logger->Log( "UNKNOWN", false, true );
+                    }
                 }
             }
 
@@ -285,6 +290,8 @@ void *ProcessClient( void *a_client )
                 }
             }
         }
+        httpRequest->Reset();
+        usleep( 10000 );
     }
 
     {
@@ -294,10 +301,6 @@ void *ProcessClient( void *a_client )
         context->logger->Log( port, false, false );
         context->logger->Log( " - Disconnected", false, true );
     }
-    delete httpRequest;
-    httpRequest = NULL;
-    delete host;
-    host = NULL;
 
     printf( " [+] Finished processing client\n" );
     context->socket->Shutdown();
@@ -306,7 +309,7 @@ void *ProcessClient( void *a_client )
     pthread_exit( NULL );
 }
 
-void PrintHttpRequest( HttpRequest *a_request )
+void PrintHttpRequest( ::std::shared_ptr< HttpRequest > &a_request )
 {
     if( a_request == NULL )
     {

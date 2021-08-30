@@ -116,10 +116,11 @@ namespace utils
         // Get the HTTP request
         while( a_socket.Valid() && ( timeout > 0 ) )
         {
+            // Wait a bit for data before calling ReadLine()
+            usleep( 10000 );
             if( !a_socket.ReadLine( recvb ) )
             {
                 --timeout;
-                usleep( 10000 );
                 continue;
             }
             if( 0 == recvb->Length() )

@@ -2,5 +2,6 @@
 *.a
 .vscode
 httpd.log
+httpd.ini
 httpd
 vic

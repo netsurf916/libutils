@@ -180,7 +180,7 @@ namespace utils
         uint8_t data = 0;
         uint32_t timeout = a_timeout;
         bool done = !Valid();
-        while( !done && ( a_timeout > 0 ) )
+        while( !done && ( timeout > 0 ) )
         {
             int32_t result = recv( m_sockfd, &data, sizeof( data ), MSG_PEEK | MSG_DONTWAIT );
             if( ( result > 0 ) && ( a_buffer->Space() > 0 ) )
