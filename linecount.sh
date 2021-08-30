@@ -1,4 +1,4 @@
 #!/bin/bash
 
-find . -iname '*.[h|c]*' | xargs wc -l
+find . -not -path '*/\.*' -iname '*.[h|c]*' | xargs wc -l
 
