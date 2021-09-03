@@ -10,6 +10,8 @@
 #include <utils/Thread.hpp>
 #include <unistd.h>
 
+#define MAXBUFFERLEN 10240
+
 namespace utils
 {
     HttpRequest::HttpRequest()
@@ -199,9 +201,9 @@ namespace utils
                             {
                                 m_length = ::std::stoi( temp->Value() );
                                 // Truncate data to 4k bytes
-                                if( m_length > 4096 )
+                                if( m_length > MAXBUFFERLEN )
                                 {
-                                    m_length = 4096;
+                                    m_length = MAXBUFFERLEN;
                                 }
                             }
                             if( temp->Key() == "RANGE" )
@@ -324,7 +326,7 @@ namespace utils
         {
             if( a_type.length() > 0 )
             {
-                char buffer[ 4096 ];
+                char buffer[ MAXBUFFERLEN ];
                 // Partial content is only allowed for files, not internally generated content
                 if( ( m_method == "GET" ) && ( m_start >= 0 ) )
                 {
@@ -525,11 +527,43 @@ namespace utils
 
         if( m_body.length() > 0 )
         {
-            a_logger.Log( m_host, true, false );
-            a_logger.Log( ":", false, false );
-            a_logger.Log( buffer, false, false );
-            a_logger.Log( " - ", false, false );
-            a_logger.Log( m_body, false, true );
+            ::std::string hex;
+            ::std::string printable;
+            uint8_t max_width = 0;
+            for( size_t i = 0; i < m_body.length(); ++i )
+            {
+                if( Tokens::IsPrintable( ( uint8_t )m_body[ i ] ) )
+                {
+                    printable += m_body[ i ];
+                }
+                else
+                {
+                    printable += '.';
+                }
+                char tmp[8];
+                snprintf( tmp, sizeof( tmp ), "%02X ", 0xFF & m_body[ i ] );
+                hex += tmp;
+                if( ( ( ( i + 1 ) % 12 ) == 0 ) || ( i == ( m_body.length() - 1 ) ) )
+                {
+                    if( hex.length() > max_width )
+                    {
+                        max_width = hex.length();
+                    }
+                    a_logger.Log( m_host, true, false );
+                    a_logger.Log( ":", false, false );
+                    a_logger.Log( buffer, false, false );
+                    a_logger.Log( " - [ ", false, false );
+                    a_logger.Log( hex, false, false );
+                    for( uint8_t j = hex.length(); j < max_width; ++j )
+                    {
+                        a_logger.Log( " ", false, false );
+                    }
+                    a_logger.Log( "]  ", false, false );
+                    a_logger.Log( printable, false, true );
+                    hex.clear();
+                    printable.clear();
+                }
+            }
         }
     }
 
