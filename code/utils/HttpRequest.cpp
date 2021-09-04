@@ -10,7 +10,7 @@
 #include <utils/Thread.hpp>
 #include <unistd.h>
 
-#define MAXBUFFERLEN 10240
+#define MAXBUFFERLEN 65536
 
 namespace utils
 {
