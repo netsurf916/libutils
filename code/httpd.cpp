@@ -176,7 +176,7 @@ void *ProcessClient( void *a_client )
     }
 
     {
-        utils::Lock logLock( &( *( context->logger ) ) );
+        utils::Lock logLock( context->logger.get() );
         context->logger->Log( context->address, true, false );
         context->logger->Log( ":", false, false );
         context->logger->Log( context->port, false, false );
@@ -229,16 +229,33 @@ void *ProcessClient( void *a_client )
             {
                 Tokens::MakeLower( operation );
                 printf( " [@] Internal operation: %s\n", operation.c_str() );
-                context->logger->Log( "Internal operation: ", true, false );
+                {
+                    utils::Lock logLock( context->logger.get() );
+                    context->logger->Log( context->address, true, false );
+                    context->logger->Log( ":", false, false );
+                    context->logger->Log( context->port, false, false );
+                    context->logger->Log( "Internal operation: ", true, false );
+                    bool printable = true;
+                    for( size_t i = 0; ( i < operation.length() ) && printable; ++i )
+                    {
+                        printable = Tokens::IsPrintable( operation[ i ] );
+                    }
+                    if( printable )
+                    {
+                        context->logger->Log( operation.c_str(), false, true );
+                    }
+                    else
+                    {
+                        context->logger->Log( "UNKNOWN", false, true );
+                    }
+                }
                 if( "ip" == operation )
                 {
-                    context->logger->Log( operation.c_str(), false, true );
                     // Reuse mime type: "text/plain"
                     httpRequest->Response() += context->address;
                 }
                 else if( "request" == operation )
                 {
-                    context->logger->Log( operation.c_str(), false, true );
                     mimeType = "text/html";
                     ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > meta = httpRequest->Meta();
                     httpRequest->Response() += "<html>\n <head>\n  <title>Client Request</title>\n </head>\n<body>";
@@ -269,10 +286,6 @@ void *ProcessClient( void *a_client )
                     httpRequest->Response() += "</table>\n";
                     httpRequest->Response() += "</body></html>\n";
                 }
-                else
-                {
-                    context->logger->Log( "UNKNOWN", false, true );
-                }
             }
         }
 
@@ -280,7 +293,7 @@ void *ProcessClient( void *a_client )
 
         printf( " [+] Response: %d\n", response );
         {
-            utils::Lock logLock( &( *( context->logger ) ) );
+            utils::Lock logLock( context->logger.get() );
             context->logger->Log( context->address, true, false );
             context->logger->Log( ":", false, false );
             context->logger->Log( context->port, false, false );
@@ -297,7 +310,7 @@ void *ProcessClient( void *a_client )
     }
 
     {
-        utils::Lock logLock( &( *( context->logger ) ) );
+        utils::Lock logLock( context->logger.get() );
         context->logger->Log( context->address, true, false );
         context->logger->Log( ":", false, false );
         context->logger->Log( context->port, false, false );

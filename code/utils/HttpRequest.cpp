@@ -115,7 +115,7 @@ namespace utils
         }
         utils::Lock   valueLock( a_socket.get() );
 
-        ::std::shared_ptr< Buffer > recvb = ::std::make_shared< Buffer >( 2048 );
+        ::std::shared_ptr< Buffer > recvb = ::std::make_shared< Buffer >( MAXBUFFERLEN );
 
         if( !recvb )
         {
@@ -312,15 +312,15 @@ namespace utils
         }
         utils::Lock    valueLock( a_socket.get() );
 
-        auto sendb = ::std::make_shared< Buffer >( 2048 );
+        auto sendb = ::std::make_shared< Buffer >( MAXBUFFERLEN );
         auto file  = ::std::make_shared< File >( a_fileName.c_str() );
 
         if( !a_socket->Valid() || !sendb || !file || ( ( ( m_method == "HEAD" ) || ( m_method == "GET" ) ) && ( !file->Exists() && ( m_response.length() == 0 ) ) ) )
         {
             if( a_socket->Valid() && sendb )
             {
-                sendb->Write( ( const uint8_t * )m_version.c_str(), m_version.length() );
-                sendb->Write( ( const uint8_t * )" 404 NOT FOUND\r\n" );
+                sendb->Write( ( const uint8_t * )"HTTP/1.1 404 NOT FOUND\r\n" );
+                sendb->Write( ( const uint8_t * )"Connection: Close\r\n" );
                 sendb->Write( ( const uint8_t * )"Content-type: text/html\r\n" );
                 sendb->Write( ( const uint8_t * )"Content-length: 57\r\n\r\n" );
                 sendb->Write( ( const uint8_t * )"<html><head><center>Not Found!</center></head></html>\r\n\r\n" );
@@ -332,6 +332,7 @@ namespace utils
         if( m_timeout || ( 0 == m_version.length() ) )
         {
             sendb->Write( ( const uint8_t * )"HTTP/1.1 408 TIMEOUT\r\n" );
+            sendb->Write( ( const uint8_t * )"Connection: Close\r\n" );
             sendb->Write( ( const uint8_t * )"Content-type: text/html\r\n" );
             sendb->Write( ( const uint8_t * )"Content-length: 55\r\n\r\n" );
             sendb->Write( ( const uint8_t * )"<html><head><center>Timeout!</center></head></html>\r\n\r\n" );
@@ -358,8 +359,8 @@ namespace utils
                         m_start = 0;
                         m_end   = m_response.length() - 1;
                     }
-                    sendb->Write( ( const uint8_t * )m_version.c_str(), m_version.length() );
-                    sendb->Write( ( const uint8_t * )" 206 PARTIAL CONTENT\r\n" );
+                    sendb->Write( ( const uint8_t * )"HTTP/1.1 206 PARTIAL CONTENT\r\n" );
+                    sendb->Write( ( const uint8_t * )"Connection: Close\r\n" );
                     sendb->Write( ( const uint8_t * )"Content-type: " );
                     sendb->Write( ( const uint8_t * )a_type.c_str(), a_type.length() );
                     sendb->Write( ( const uint8_t * )"\r\n" );
@@ -433,8 +434,8 @@ namespace utils
                     {
                         snprintf( buffer, sizeof( buffer ), "%lu", m_response.length() );
                     }
-                    sendb->Write( ( const uint8_t * )m_version.c_str(), m_version.length() );
-                    sendb->Write( ( const uint8_t * )" 200 OK\r\n" );
+                    sendb->Write( ( const uint8_t * )"HTTP/1.1 200 OK\r\n" );
+                    sendb->Write( ( const uint8_t * )"Connection: Close\r\n" );
                     sendb->Write( ( const uint8_t * )"Content-type: " );
                     sendb->Write( ( const uint8_t * )a_type.c_str(), a_type.length() );
                     sendb->Write( ( const uint8_t * )"\r\n" );
@@ -493,8 +494,8 @@ namespace utils
             }
             else
             {
-                sendb->Write( ( const uint8_t * )m_version.c_str(), m_version.length() );
-                sendb->Write( ( const uint8_t * )" 404 NOT FOUND\r\n" );
+                sendb->Write( ( const uint8_t * )"HTTP/1.1 404 NOT FOUND\r\n" );
+                sendb->Write( ( const uint8_t * )"Connection: Close\r\n" );
                 sendb->Write( ( const uint8_t * )"Content-type: text/html\r\n" );
                 sendb->Write( ( const uint8_t * )"Content-length: 57\r\n\r\n" );
                 sendb->Write( ( const uint8_t * )"<html><head><center>Not Found!</center></head></html>\r\n\r\n" );
@@ -506,6 +507,7 @@ namespace utils
         {
             sendb->Write( ( const uint8_t * )"HTTP/1.1 405 METHOD NOT ALLOWED\r\n" );
             sendb->Write( ( const uint8_t * )"Allow: GET, HEAD\r\n" );
+            sendb->Write( ( const uint8_t * )"Connection: Close\r\n" );
             sendb->Write( ( const uint8_t * )"Content-type: text/html\r\n" );
             sendb->Write( ( const uint8_t * )"Content-length: 59\r\n\r\n" );
             sendb->Write( ( const uint8_t * )"<html><head><center>Not Allowed!</center></head></html>\r\n\r\n" );
