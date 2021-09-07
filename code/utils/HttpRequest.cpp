@@ -33,7 +33,7 @@ namespace utils
         m_uri.clear();
         m_version.clear();
         m_body.clear();
-        m_host.clear();
+        m_addr.clear();
         m_port    = 0;
         m_length  = 0;
         m_start   = -1;
@@ -90,13 +90,30 @@ namespace utils
         return m_response;
     }
 
-    bool HttpRequest::Read( Socket &a_socket )
+    ::std::string &HttpRequest::RemoteAddress()
+    {
+        utils::Lock lock( this );
+        return m_addr;
+    }
+
+    uint32_t &HttpRequest::RemotePort()
+    {
+        utils::Lock lock( this );
+        return m_port;
+    }
+
+    bool HttpRequest::Read( ::std::shared_ptr< Socket > &a_socket )
     {
         utils::Lock   lock( this );
-        utils::Lock   valueLock( &a_socket );
         uint32_t      timeout = 100;
         uint32_t      count = 0;
         ::std::string token;
+
+        if( !a_socket )
+        {
+            return false;
+        }
+        utils::Lock   valueLock( a_socket.get() );
 
         ::std::shared_ptr< Buffer > recvb = ::std::make_shared< Buffer >( 2048 );
 
@@ -106,21 +123,17 @@ namespace utils
         }
 
         Reset();
-        if( a_socket.Valid() )
-        {
-            a_socket.GetRemoteAddress( m_host, m_port );
-        }
-        else
+        if( !a_socket->Valid() )
         {
             return false;
         }
 
         // Get the HTTP request
-        while( a_socket.Valid() && ( timeout > 0 ) )
+        while( a_socket->Valid() && ( timeout > 0 ) )
         {
             // Wait a bit for data before calling ReadLine()
             usleep( 10000 );
-            if( !a_socket.ReadLine( recvb ) )
+            if( !a_socket->ReadLine( recvb ) )
             {
                 --timeout;
                 continue;
@@ -132,9 +145,9 @@ namespace utils
                 {
                     recvb->Clear();
                     timeout = 100;
-                    while( ( timeout > 0 ) && a_socket.Valid() )
+                    while( ( timeout > 0 ) && a_socket->Valid() )
                     {
-                        if( !a_socket.Read( recvb ) )
+                        if( !a_socket->Read( recvb ) )
                         {
                             --timeout;
                             usleep( 10000 );
@@ -289,23 +302,29 @@ namespace utils
         return ( !m_timeout && ( m_method.length() > 0 ) && ( m_uri.length() > 0 ) && ( m_version.length() > 0 ) );
     }
 
-    int32_t HttpRequest::Respond( Socket &a_socket, ::std::string &a_fileName, ::std::string &a_type )
+    int32_t HttpRequest::Respond( ::std::shared_ptr< Socket > &a_socket, ::std::string &a_fileName, ::std::string &a_type )
     {
         utils::Lock    lock( this );
-        utils::Lock    valueLock( &a_socket );
+
+        if( !a_socket )
+        {
+            return -1;
+        }
+        utils::Lock    valueLock( a_socket.get() );
+
         auto sendb = ::std::make_shared< Buffer >( 2048 );
         auto file  = ::std::make_shared< File >( a_fileName.c_str() );
 
-        if( !a_socket.Valid() || !sendb || !file || ( ( ( m_method == "HEAD" ) || ( m_method == "GET" ) ) && ( !file->Exists() && ( m_response.length() == 0 ) ) ) )
+        if( !a_socket->Valid() || !sendb || !file || ( ( ( m_method == "HEAD" ) || ( m_method == "GET" ) ) && ( !file->Exists() && ( m_response.length() == 0 ) ) ) )
         {
-            if( a_socket.Valid() && sendb )
+            if( a_socket->Valid() && sendb )
             {
                 sendb->Write( ( const uint8_t * )m_version.c_str(), m_version.length() );
                 sendb->Write( ( const uint8_t * )" 404 NOT FOUND\r\n" );
                 sendb->Write( ( const uint8_t * )"Content-type: text/html\r\n" );
                 sendb->Write( ( const uint8_t * )"Content-length: 57\r\n\r\n" );
                 sendb->Write( ( const uint8_t * )"<html><head><center>Not Found!</center></head></html>\r\n\r\n" );
-                while( a_socket.Write( sendb ) );
+                while( a_socket->Write( sendb ) );
                 return 404;
             }
             return -1;
@@ -316,7 +335,7 @@ namespace utils
             sendb->Write( ( const uint8_t * )"Content-type: text/html\r\n" );
             sendb->Write( ( const uint8_t * )"Content-length: 55\r\n\r\n" );
             sendb->Write( ( const uint8_t * )"<html><head><center>Timeout!</center></head></html>\r\n\r\n" );
-            while( a_socket.Write( sendb ) );
+            while( a_socket->Write( sendb ) );
             return 408;
         }
         else if( ( ( m_method  == "HEAD" ) ||
@@ -359,15 +378,15 @@ namespace utils
                     sendb->Write( ( const uint8_t * )"Content-length: " );
                     sendb->Write( ( const uint8_t * )buffer, strlen( buffer ) );
                     sendb->Write( ( const uint8_t * )"\r\n\r\n", 4 );
-                    while( sendb->Length() && a_socket.Valid() )
+                    while( sendb->Length() && a_socket->Valid() )
                     {
-                        a_socket.Write( sendb );
+                        a_socket->Write( sendb );
                     }
                     if( file->Exists() )
                     {
                         if( ( m_end >= m_start ) && file->Seek( m_start ) )
                         {
-                            while( ( file->Position() < ( m_end + 1 ) ) && a_socket.Valid() )
+                            while( ( file->Position() < ( m_end + 1 ) ) && a_socket->Valid() )
                             {
                                 uint32_t result = 0;
                                 if( ( ( m_end + 1 ) - file->Position() ) > ( int64_t )sizeof( buffer ) )
@@ -379,19 +398,19 @@ namespace utils
                                     result = file->Read( ( uint8_t * )buffer, ( m_end + 1 ) - file->Position() );
                                 }
                                 uint32_t total = 0;
-                                while( ( total < result ) && a_socket.Valid() )
+                                while( ( total < result ) && a_socket->Valid() )
                                 {
                                     total += sendb->Write( ( const uint8_t * )buffer + total, result - total );
                                     if( sendb->Length() > 0 )
                                     {
-                                        a_socket.Write( sendb );
+                                        a_socket->Write( sendb );
                                     }
                                 }
                             }
                         }
-                        while( sendb->Length() && a_socket.Valid() )
+                        while( sendb->Length() && a_socket->Valid() )
                         {
-                            a_socket.Write( sendb );
+                            a_socket->Write( sendb );
                         }
                     }
                     else if( m_response.length() > 0 )
@@ -399,7 +418,7 @@ namespace utils
                         uint32_t sent = 0;
                         while( sent < m_response.length() )
                         {
-                            sent += a_socket.Write( ( uint8_t * )( m_response.c_str() + sent ), static_cast< uint32_t >( m_response.length() - sent ) );
+                            sent += a_socket->Write( ( uint8_t * )( m_response.c_str() + sent ), static_cast< uint32_t >( m_response.length() - sent ) );
                         }
                     }
                     return 206;
@@ -423,15 +442,15 @@ namespace utils
                     sendb->Write( ( const uint8_t * )"Content-length: " );
                     sendb->Write( ( const uint8_t * )buffer, strlen( buffer ) );
                     sendb->Write( ( const uint8_t * )"\r\n\r\n" );
-                    while( sendb->Length() && a_socket.Valid() )
+                    while( sendb->Length() && a_socket->Valid() )
                     {
-                        a_socket.Write( sendb );
+                        a_socket->Write( sendb );
                     }
                     if( m_method == "GET" )
                     {
                         if( file->Exists() )
                         {
-                            while( ( ( file->Size() - file->Position() ) > 0 ) && a_socket.Valid() )
+                            while( ( ( file->Size() - file->Position() ) > 0 ) && a_socket->Valid() )
                             {
                                 uint32_t result = 0;
                                 if( ( file->Size() - file->Position() ) > sizeof( buffer ) )
@@ -443,7 +462,7 @@ namespace utils
                                     result = file->Read( ( uint8_t * )buffer, file->Size() - file->Position() );
                                 }
                                 uint32_t total = 0;
-                                while( ( total < result ) && a_socket.Valid() )
+                                while( ( total < result ) && a_socket->Valid() )
                                 {
                                     if( result > 0 )
                                     {
@@ -451,13 +470,13 @@ namespace utils
                                     }
                                     if( sendb->Length() > 0 )
                                     {
-                                        a_socket.Write( sendb );
+                                        a_socket->Write( sendb );
                                     }
                                 }
                             }
-                            while( sendb->Length() && a_socket.Valid() )
+                            while( sendb->Length() && a_socket->Valid() )
                             {
-                                a_socket.Write( sendb );
+                                a_socket->Write( sendb );
                             }
                         }
                         else if( m_response.length() > 0 )
@@ -465,7 +484,7 @@ namespace utils
                             uint32_t sent = 0;
                             while( sent < m_response.length() )
                             {
-                                sent += a_socket.Write( ( uint8_t * )( m_response.c_str() + sent ), static_cast< uint32_t >( m_response.length() - sent ) );
+                                sent += a_socket->Write( ( uint8_t * )( m_response.c_str() + sent ), static_cast< uint32_t >( m_response.length() - sent ) );
                             }
                         }
                     }
@@ -479,7 +498,7 @@ namespace utils
                 sendb->Write( ( const uint8_t * )"Content-type: text/html\r\n" );
                 sendb->Write( ( const uint8_t * )"Content-length: 57\r\n\r\n" );
                 sendb->Write( ( const uint8_t * )"<html><head><center>Not Found!</center></head></html>\r\n\r\n" );
-                while( a_socket.Write( sendb ) );
+                while( a_socket->Write( sendb ) );
                 return 404;
             }
         }
@@ -490,7 +509,7 @@ namespace utils
             sendb->Write( ( const uint8_t * )"Content-type: text/html\r\n" );
             sendb->Write( ( const uint8_t * )"Content-length: 59\r\n\r\n" );
             sendb->Write( ( const uint8_t * )"<html><head><center>Not Allowed!</center></head></html>\r\n\r\n" );
-            while( a_socket.Write( sendb ) );
+            while( a_socket->Write( sendb ) );
             return 405;
         }
     }
@@ -503,7 +522,7 @@ namespace utils
         ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > start = m_meta;
 
         snprintf( buffer, sizeof( buffer ), "%u", m_port );
-        a_logger.Log( m_host, true, false );
+        a_logger.Log( m_addr, true, false );
         a_logger.Log( ":", false, false );
         a_logger.Log( buffer, false, false );
         a_logger.Log( " - ", false, false );
@@ -515,7 +534,7 @@ namespace utils
 
         while( start )
         {
-            a_logger.Log( m_host, true, false );
+            a_logger.Log( m_addr, true, false );
             a_logger.Log( ":", false, false );
             a_logger.Log( buffer, false, false );
             a_logger.Log( " - ", false, false );
@@ -549,7 +568,7 @@ namespace utils
                     {
                         max_width = hex.length();
                     }
-                    a_logger.Log( m_host, true, false );
+                    a_logger.Log( m_addr, true, false );
                     a_logger.Log( ":", false, false );
                     a_logger.Log( buffer, false, false );
                     a_logger.Log( " - [ ", false, false );

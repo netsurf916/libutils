@@ -20,8 +20,8 @@ namespace utils
             int64_t       m_start;
             int64_t       m_end;
             ::std::string m_body;
-            ::std::string m_host;
-            uint32_t      m_port;
+            ::std::string m_addr; // Remote host
+            uint32_t      m_port; // Remote port
             bool          m_timeout;
             ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > m_meta;
             ::std::string m_response;
@@ -38,9 +38,11 @@ namespace utils
             ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > &Meta();
             ::std::string  Host();
             ::std::string &Response();
+            ::std::string &RemoteAddress();
+            uint32_t      &RemotePort();
 
-            bool    Read( Socket &a_socket );
-            int32_t Respond( Socket &a_socket, ::std::string &a_fileName, ::std::string &a_type );
+            bool    Read( ::std::shared_ptr< Socket > &a_socket );
+            int32_t Respond( ::std::shared_ptr< Socket > &a_socket, ::std::string &a_fileName, ::std::string &a_type );
 
             void Log( LogFile &a_logger );
     };

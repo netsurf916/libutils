@@ -26,6 +26,9 @@ struct ThreadCTX : public Lockable
     ::std::shared_ptr< Socket >  socket;
     ::std::shared_ptr< LogFile > logger;
     ::std::shared_ptr< IniFile > settings;
+    ::std::string                address;
+    uint32_t                     port;
+    uint32_t                     id;
 };
 
 void *ProcessClient( void *a_client );
@@ -73,11 +76,11 @@ int main( int argc, char *argv[] )
     ::std::shared_ptr< Socket > listener = ::std::make_shared< Socket >( address.c_str(), ::std::stoi( port ), SocketFlags::TcpServer );
     if( !listener || !listener->Valid() )
     {
-        printf( " [!] Error listening on: %s:%lu\n", address.c_str(), ::std::stol( port ) );
+        printf( " [!] Error listening on: %s:%ld\n", address.c_str(), ::std::stol( port ) );
         return 0;
     }
 
-    printf( " [+] Listening for incoming connnections on: %s:%lu\n",
+    printf( " [+] Listening for incoming connnections on: %s:%ld\n",
         address.c_str(), ::std::stol( port ) );
     logger->Log( "Listening for incoming connections on: ", true, false );
     logger->Log( address, false, false );
@@ -93,11 +96,13 @@ int main( int argc, char *argv[] )
 
     while( listener->Valid() )
     {
-        int32_t clientfd = -1;
-        if( listener->Accept( clientfd ) )
+        int32_t       clientfd = -1;
+        ::std::string address;
+        uint32_t      port = 0;
+        if( listener->Accept( clientfd, address, port ) )
         {
             bool found = false;
-            printf( " [*] Client connected\n" );
+            printf( " [*] Client connected: %s:%u\n", address.c_str(), port );
             while( !found && listener->Valid() )
             {
                 for( uint32_t c = 0; !found && ( c < NUMTHREADS ); ++c )
@@ -114,6 +119,9 @@ int main( int argc, char *argv[] )
                             clients[ c ]->GetContext()->socket   = ::std::make_shared< Socket >( clientfd );
                             clients[ c ]->GetContext()->logger   = logger;
                             clients[ c ]->GetContext()->settings = settings;
+                            clients[ c ]->GetContext()->address  = address;
+                            clients[ c ]->GetContext()->port     = port;
+                            clients[ c ]->GetContext()->id       = c;
                             if( clients[ c ]->GetContext()->socket &&
                                 clients[ c ]->GetContext()->socket->Valid() )
                             {
@@ -132,7 +140,7 @@ int main( int argc, char *argv[] )
                     usleep( 12500 );
                 }
             }
-            printf( " [+] Client thread started\n" );
+            printf( " [+] Client thread started (%s:%u)\n", address.c_str(), port );
         }
         else
         {
@@ -153,159 +161,152 @@ int main( int argc, char *argv[] )
 void *ProcessClient( void *a_client )
 {
     ThreadCTX *context = ( ThreadCTX * ) a_client;
-    uint32_t   port    = 0;
-    ::std::shared_ptr< HttpRequest >   httpRequest = ::std::make_shared< HttpRequest >();
-    ::std::shared_ptr< ::std::string > host        = ::std::make_shared< ::std::string >();
+    ::std::shared_ptr< HttpRequest > httpRequest = ::std::make_shared< HttpRequest >();
+    ::std::shared_ptr< utils::Lock > lock        = ::std::make_shared< Lock >( context );
 
     if( ( NULL == context          ) ||
        !( context->settings        ) ||
        !( context->logger          ) ||
        !( context->socket          ) ||
        !( context->socket->Valid() ) ||
-        ( NULL == httpRequest      ) ||
-        ( NULL == host             ) )
+        ( NULL == httpRequest      ) )
     {
         printf( " [!] Client processing failed\n" );
         pthread_exit( NULL );
     }
 
-    context->socket->GetRemoteAddress( *host, port );
     {
-        utils::Lock lock( &( *( context->logger ) ) );
-        context->logger->Log( *host, true, false );
+        utils::Lock logLock( &( *( context->logger ) ) );
+        context->logger->Log( context->address, true, false );
         context->logger->Log( ":", false, false );
-        context->logger->Log( port, false, false );
+        context->logger->Log( context->port, false, false );
         context->logger->Log( " - Connected", false, true );
     }
 
-    utils::Lock *lock = new Lock( context );
-
-    printf( " [+] Processing client\n" );
-    while( context->socket->Valid() && httpRequest->Read( *( context->socket ) ) )
+    printf( " [+] Processing client (id: %u)\n", context->id );
+    if( context->socket->Valid() && httpRequest->Read( context->socket ) )
     {
+        httpRequest->RemoteAddress() = context->address;
+        httpRequest->RemotePort()    = context->port;
         printf( " [+] Got HTTP request\n" );
-        ::std::shared_ptr< ::std::string > fileName   = ::std::make_shared< ::std::string >();
-        ::std::shared_ptr< ::std::string > fileType   = ::std::make_shared< ::std::string >();
-        ::std::shared_ptr< ::std::string > mimeType   = ::std::make_shared< ::std::string >();
-        ::std::shared_ptr< ::std::string > hostHome   = ::std::make_shared< ::std::string >();
-        ::std::shared_ptr< ::std::string > defaultDoc = ::std::make_shared< ::std::string >();
-        if( fileName && fileType && mimeType && hostHome && defaultDoc )
+        ::std::string fileName;
+        ::std::string fileType;
+        ::std::string mimeType;
+        ::std::string hostHome;
+        ::std::string defaultDoc;
+        int response = 0;
+        printf( " [*] Remote: %s:%u\n", context->address.c_str(), context->port );
+        PrintHttpRequest( httpRequest );
+        httpRequest->Log( *( context->logger ) );
+
+        if( ( context->settings->ReadValue( "path", httpRequest->Host().c_str(), hostHome ) ||
+                context->settings->ReadValue( "path", "default", hostHome ) ) &&
+            ( context->settings->ReadValue( "document", httpRequest->Host().c_str(), defaultDoc ) ||
+                context->settings->ReadValue( "document", "default", defaultDoc ) ) )
         {
-            int response = 0;
-            printf( " [*] Remote: %s:%d\n", host->c_str(), port );
-            PrintHttpRequest( httpRequest );
-            httpRequest->Log( *( context->logger ) );
-
-            if( ( context->settings->ReadValue( "path", httpRequest->Host().c_str(), *hostHome ) ||
-                  context->settings->ReadValue( "path", "default", *hostHome ) ) &&
-                ( context->settings->ReadValue( "document", httpRequest->Host().c_str(), *defaultDoc ) ||
-                  context->settings->ReadValue( "document", "default", *defaultDoc ) ) )
+            fileName = httpRequest->Uri();
+            mimeType = DEFMIME;
+            // Decode the URI and lookup the matching mime-type or use the default
+            if( !HttpHelpers::UriDecode( hostHome, defaultDoc, fileName, fileType, mimeType ) ||
+                ( !context->settings->ReadValue( "mime-types", fileType.c_str(), mimeType ) 
+                && !context->settings->ReadValue( "mime-types", DEFMIME, mimeType ) ) )
             {
-                *fileName = httpRequest->Uri();
-                *mimeType = DEFMIME;
-                // Decode the URI and lookup the matching mime-type or use the default
-                if( !HttpHelpers::UriDecode( *hostHome, *defaultDoc, *fileName, *fileType, *mimeType ) ||
-                    ( !context->settings->ReadValue( "mime-types", fileType->c_str(), *mimeType ) 
-                    && !context->settings->ReadValue( "mime-types", DEFMIME, *mimeType ) ) )
-                {
-                    fileName->clear();
-                    mimeType->clear();
-                }
+                fileName.clear();
+                mimeType.clear();
             }
+        }
 
-            if( *mimeType == "internal" )
+        // Process internal operation requests
+        if( mimeType == "internal" )
+        {
+            // Default mime type for internal responses
+            mimeType = "text/plain";
+            ::std::string operation = fileName;
+            auto start = operation.rfind( '/' );
+            auto end   = operation.rfind( '.' );
+            operation = operation.substr( start + 1, end - start - 1 );
+            if( operation.length() > 0 )
             {
-                *mimeType = "text/plain";
-                ::std::string operation = *fileName;
-                auto start = operation.rfind( '/' );
-                auto end   = operation.rfind( '.' );
-                operation = operation.substr( start + 1, end - start - 1 );
-                if( operation.length() > 0 )
+                Tokens::MakeLower( operation );
+                printf( " [@] Internal operation: %s\n", operation.c_str() );
+                context->logger->Log( "Internal operation: ", true, false );
+                if( "ip" == operation )
                 {
-                    Tokens::MakeLower( operation );
-                    printf( " [@] Internal operation: %s\n", operation.c_str() );
-                    context->logger->Log( "Internal operation: ", true, false );
-                    if( "ip" == operation )
-                    {
-                        context->logger->Log( operation.c_str(), false, true );
-                        // Reuse mime type: "text/plain"
-                        httpRequest->Response() += *host;
-                    }
-                    else if( "request" == operation )
-                    {
-                        context->logger->Log( operation.c_str(), false, true );
-                        *mimeType = "text/html";
-                        ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > meta = httpRequest->Meta();
-                        httpRequest->Response() += "<html>\n <head>\n  <title>Client Request</title>\n </head>\n<body>";
-                        httpRequest->Response() += "Client: ";
-                        httpRequest->Response() += *host;
-                        httpRequest->Response() += ":";
-                        httpRequest->Response() += ::std::to_string( port );
-                        httpRequest->Response() += "<br><br>\n";
-                        httpRequest->Response() += httpRequest->Method();
-                        httpRequest->Response() += " ";
-                        httpRequest->Response() += httpRequest->Uri();
-                        httpRequest->Response() += " ";
-                        httpRequest->Response() += httpRequest->Version();
-                        httpRequest->Response() += "<br>\n";
-                        httpRequest->Response() += "<table>\n";
-                        while( meta )
-                        {
-                            httpRequest->Response() += " <tr>\n";
-                            httpRequest->Response() += "  <td>";
-                            httpRequest->Response() += meta->Key();
-                            httpRequest->Response() += "</td>\n";
-                            httpRequest->Response() += "  <td>";
-                            httpRequest->Response() += meta->Value();
-                            httpRequest->Response() += "</td>\n";
-                            httpRequest->Response() += " </tr>\n";
-                            meta = meta->Next();
-                        }
-                        httpRequest->Response() += "</table>\n";
-                        httpRequest->Response() += "</body></html>\n";
-                    }
-                    else
-                    {
-                        context->logger->Log( "UNKNOWN", false, true );
-                    }
+                    context->logger->Log( operation.c_str(), false, true );
+                    // Reuse mime type: "text/plain"
+                    httpRequest->Response() += context->address;
                 }
-            }
-
-            response = httpRequest->Respond( *( context->socket ), *fileName, *mimeType );
-
-            printf( " [+] Response: %d\n", response );
-            {
-                utils::Lock lock( &( *( context->logger ) ) );
-                context->logger->Log( *host, true, false );
-                context->logger->Log( ":", false, false );
-                context->logger->Log( port, false, false );
-                context->logger->Log( " - Response: ", false, false );
-                if( response > 0 )
+                else if( "request" == operation )
                 {
-                    context->logger->Log( response, false, true );
+                    context->logger->Log( operation.c_str(), false, true );
+                    mimeType = "text/html";
+                    ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > meta = httpRequest->Meta();
+                    httpRequest->Response() += "<html>\n <head>\n  <title>Client Request</title>\n </head>\n<body>";
+                    httpRequest->Response() += "Client: ";
+                    httpRequest->Response() += context->address;
+                    httpRequest->Response() += ":";
+                    httpRequest->Response() += ::std::to_string( context->port );
+                    httpRequest->Response() += "<br><br>\n";
+                    httpRequest->Response() += httpRequest->Method();
+                    httpRequest->Response() += " ";
+                    httpRequest->Response() += httpRequest->Uri();
+                    httpRequest->Response() += " ";
+                    httpRequest->Response() += httpRequest->Version();
+                    httpRequest->Response() += "<br>\n";
+                    httpRequest->Response() += "<table>\n";
+                    while( meta )
+                    {
+                        httpRequest->Response() += " <tr>\n";
+                        httpRequest->Response() += "  <td>";
+                        httpRequest->Response() += meta->Key();
+                        httpRequest->Response() += "</td>\n";
+                        httpRequest->Response() += "  <td>";
+                        httpRequest->Response() += meta->Value();
+                        httpRequest->Response() += "</td>\n";
+                        httpRequest->Response() += " </tr>\n";
+                        meta = meta->Next();
+                    }
+                    httpRequest->Response() += "</table>\n";
+                    httpRequest->Response() += "</body></html>\n";
                 }
                 else
                 {
-                    context->logger->Log( "INTERNAL ERROR", false, true );
+                    context->logger->Log( "UNKNOWN", false, true );
                 }
             }
         }
-        httpRequest->Reset();
-        usleep( 10000 );
+
+        response = httpRequest->Respond( context->socket, fileName, mimeType );
+
+        printf( " [+] Response: %d\n", response );
+        {
+            utils::Lock logLock( &( *( context->logger ) ) );
+            context->logger->Log( context->address, true, false );
+            context->logger->Log( ":", false, false );
+            context->logger->Log( context->port, false, false );
+            context->logger->Log( " - Response: ", false, false );
+            if( response > 0 )
+            {
+                context->logger->Log( response, false, true );
+            }
+            else
+            {
+                context->logger->Log( "INTERNAL ERROR", false, true );
+            }
+        }
     }
 
     {
-        utils::Lock lock( &( *( context->logger ) ) );
-        context->logger->Log( *host, true, false );
+        utils::Lock logLock( &( *( context->logger ) ) );
+        context->logger->Log( context->address, true, false );
         context->logger->Log( ":", false, false );
-        context->logger->Log( port, false, false );
+        context->logger->Log( context->port, false, false );
         context->logger->Log( " - Disconnected", false, true );
     }
 
-    printf( " [+] Finished processing client\n" );
+    printf( " [+] Finished processing client (%s:%u)\n", context->address.c_str(), context->port );
     context->socket->Shutdown();
-    printf( " [+] Thread exiting\n" );
-    delete lock;
+    printf( " [+] Thread exiting (id: %u)\n", context->id );
     pthread_exit( NULL );
 }
 

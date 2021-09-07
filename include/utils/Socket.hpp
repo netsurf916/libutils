@@ -39,8 +39,6 @@ namespace utils
             int32_t  m_sockfd;
             bool     m_valid;
             int32_t  m_error;
-            char     m_addr[ INET6_ADDRSTRLEN + 1 ];
-            uint32_t m_port;
             BitMask  m_flags;
 
         public:
@@ -53,10 +51,9 @@ namespace utils
 
         public:
             bool    Valid();
-            bool    Accept( int32_t &a_client );
+            bool    Accept( int32_t &a_client, ::std::string &a_address, uint32_t &a_port );
             int32_t LastError();
             bool    ReadLine( ::std::shared_ptr< Buffer > &a_buffer, uint32_t a_timeout = 1000 );
-            bool    GetRemoteAddress( ::std::string &a_address, uint32_t &a_port );
             void    Shutdown();
 
             // Read functions
@@ -73,6 +70,9 @@ namespace utils
             bool     Write( const uint8_t &a_value ) noexcept final;
             uint32_t Write( const uint8_t *a_value, uint32_t a_length ) noexcept final;
             bool     Write( ::std::shared_ptr< Buffer > &a_buffer ) noexcept;
+
+            // Helper functions
+            static bool GetRemoteAddress( const ::std::shared_ptr< Socket > &a_socket, ::std::string &a_address, uint32_t &a_port );
     };
 }
 

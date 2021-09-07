@@ -24,16 +24,13 @@ namespace utils
     : m_sockfd  ( a_sockfd )
     , m_valid   ( a_sockfd >= 0 )
     , m_error   ( 0 )
-    , m_port    ( 0 )
     , m_flags   ( a_flags )
     {
-        memset( m_addr, 0, sizeof( m_addr ) );
     }
 
     Socket::Socket( const char *a_address, uint32_t a_port, uint32_t a_flags /*= 0*/ )
     : m_valid ( false )
     , m_error ( 0 )
-    , m_port  ( a_port )
     , m_flags ( a_flags )
     {
         char port[ 32 ];
@@ -43,7 +40,6 @@ namespace utils
         {
             m_valid = false;
         }
-        memset( m_addr, 0, sizeof( m_addr ) );
     }
 
     Socket::~Socket()
@@ -146,14 +142,30 @@ namespace utils
         return m_valid;
     }
 
-    bool Socket::Accept( int32_t &a_client )
+    bool Socket::Accept( int32_t &a_client, ::std::string &a_address, uint32_t &a_port )
     {
         ::utils::Lock lock( this );
-        struct sockaddr_storage addr;
-        socklen_t len = sizeof( addr );
-        a_client = accept( m_sockfd, ( struct sockaddr * )&addr, &len );
+        struct sockaddr_storage address;
+        socklen_t length = sizeof( address );
+        a_client = accept( m_sockfd, ( struct sockaddr * )&address, &length );
         if( a_client >= 0 )
         {
+            uint32_t port = 0;
+            char     addr[ INET6_ADDRSTRLEN + 1 ] = { 0 };
+            if ( address.ss_family == AF_INET )
+            {
+                struct sockaddr_in *s = ( struct sockaddr_in * )&address;
+                port = ntohs( s->sin_port );
+                inet_ntop( AF_INET, &( s->sin_addr ), addr, sizeof( addr ) );
+            }
+            else
+            {
+                struct sockaddr_in6 *s = ( struct sockaddr_in6 * )&address;
+                port = ntohs( s->sin6_port );
+                inet_ntop( AF_INET6, &( s->sin6_addr ), addr, sizeof( addr ) );
+            }
+            a_port    = port;
+            a_address = addr;
             return true;
         }
         m_error = errno;
@@ -235,41 +247,47 @@ namespace utils
         return done;
     }
 
-    bool Socket::GetRemoteAddress( ::std::string &a_address, uint32_t &a_port )
+    bool Socket::GetRemoteAddress( const ::std::shared_ptr< Socket > &a_socket, ::std::string &a_address, uint32_t &a_port )
     {
-        ::utils::Lock lock( this );
-        if( m_flags[ SocketFlag::Server ] )
+        if( !a_socket )
         {
             return false;
         }
-        if( Valid() )
+        ::utils::Lock lock( Socket );
+        if( a_socket->m_flags[ SocketFlag::Server ] )
         {
-            struct sockaddr_storage addr;
-            uint32_t length = sizeof( addr );
-            if( 0 == getpeername( m_sockfd, ( struct sockaddr * )&addr, &length ) )
+            return false;
+        }
+        if( a_socket->Valid() )
+        {
+            uint32_t port = 0;
+            char     addr[ INET6_ADDRSTRLEN + 1 ] = { 0 };
+            struct sockaddr_storage address;
+            uint32_t length = sizeof( address );
+            if( 0 == getpeername( a_socket->m_sockfd, ( struct sockaddr * )&address, &length ) )
             {
-                if ( addr.ss_family == AF_INET )
+                if ( address.ss_family == AF_INET )
                 {
-                    struct sockaddr_in *s = ( struct sockaddr_in * )&addr;
-                    m_port = ntohs( ( *s ).sin_port );
-                    inet_ntop( AF_INET, &( ( *s ).sin_addr ), m_addr, sizeof( m_addr ) );
+                    struct sockaddr_in *s = ( struct sockaddr_in * )&address;
+                    port = ntohs( s->sin_port );
+                    inet_ntop( AF_INET, &( s->sin_addr ), addr, sizeof( addr ) );
                 }
                 else
                 {
-                    struct sockaddr_in6 *s = ( struct sockaddr_in6 * )&addr;
-                    m_port = ntohs( ( *s ).sin6_port );
-                    inet_ntop( AF_INET6, &( ( *s ).sin6_addr ), m_addr, sizeof( m_addr ) );
+                    struct sockaddr_in6 *s = ( struct sockaddr_in6 * )&address;
+                    port = ntohs( s->sin6_port );
+                    inet_ntop( AF_INET6, &( s->sin6_addr ), addr, sizeof( addr ) );
                 }
-                a_port    = m_port;
-                a_address = m_addr;
+                a_port    = port;
+                a_address = addr;
             }
-            else if( !m_flags[ SocketFlag::Server ] )
+            else if( !a_socket->m_flags[ SocketFlag::Server ] )
             {
-                m_error = errno;
-                Shutdown();
+                a_socket->m_error = errno;
+                a_socket->Shutdown();
             }
         }
-        return Valid();
+        return a_socket->Valid();
     }
 
     void Socket::Shutdown()
