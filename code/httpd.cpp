@@ -234,7 +234,7 @@ void *ProcessClient( void *a_client )
                     context->logger->Log( context->address, true, false );
                     context->logger->Log( ":", false, false );
                     context->logger->Log( context->port, false, false );
-                    context->logger->Log( "Internal operation: ", true, false );
+                    context->logger->Log( " - Internal operation: ", false, false );
                     bool printable = true;
                     for( size_t i = 0; ( i < operation.length() ) && printable; ++i )
                     {
