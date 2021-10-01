@@ -3,9 +3,6 @@
     Copyright 2014-2021 Daniel Wilson
 */
 
-// Enable TLS support
-#define USE_SSL
-
 #include <utils/Types.hpp>
 #include <utils/Buffer.hpp>
 #include <utils/BitMask.hpp>
@@ -81,6 +78,7 @@ namespace utils
             uint32_t Read_SSL( uint8_t *a_value, uint32_t a_length, bool a_block = false ) noexcept;
             bool     Peek_SSL( uint8_t &a_value ) noexcept;
             uint32_t Peek_SSL( uint8_t *a_value, uint32_t a_length ) noexcept;
+            bool     ReadLine_SSL( ::std::shared_ptr< Buffer > &a_buffer, uint32_t a_timeout = 1000 );
 
             // SSL write functions
             bool     Write_SSL( const uint8_t &a_value ) noexcept;

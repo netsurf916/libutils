@@ -48,12 +48,10 @@ int main( int argc, char *argv[] )
         return 0;
     }
 
-    #ifdef USE_SSL
     string port;
     string address;
     settings->ReadValue( "settings", "port",    port );
     settings->ReadValue( "settings", "address", address );
-    #endif // USE_SSL
 
     if( ( 0 == port.length() ) || ( 0 == address.length() ) )
     {
@@ -61,24 +59,32 @@ int main( int argc, char *argv[] )
         return 0;
     }
 
+    #ifdef USE_SSL
     string keyfile;
     string certfile;
     bool useTls = settings->ReadValue( "settings", "keyfile",  keyfile );
     useTls = useTls && settings->ReadValue( "settings", "certfile", certfile );
     useTls = useTls && ( keyfile.length() > 0 ) && ( certfile.length() > 0 );
+    #endif // USE_SSL
 
     // Try for root if the requested port is < 1024
     uid_t runningAs = getuid();
     bool  gotRoot = ( ( 0 != runningAs ) && ( stoi( port ) < 1024 ) && ( 0 == setuid( 0 ) ) );
 
     // Start the listener
-    uint32_t flags = ( useTls )? SocketFlags::TlsServer: SocketFlags::TcpServer;
-    shared_ptr< Socket > listener =
+    uint32_t flags = SocketFlags::TcpServer;
     #ifdef USE_SSL
-        make_shared< Socket >( address.c_str(), stoi( port ), flags, keyfile.c_str(), certfile.c_str() );
-    #else // !USE_SSL
-        make_shared< Socket >( address.c_str(), stoi( port ), flags );
+    if( useTls )
+    {
+        flags = SocketFlags::TlsServer;
+    }
     #endif // USE_SSL
+    shared_ptr< Socket > listener =
+        #ifdef USE_SSL
+        make_shared< Socket >( address.c_str(), stoi( port ), flags, keyfile.c_str(), certfile.c_str() );
+        #else // !USE_SSL
+        make_shared< Socket >( address.c_str(), stoi( port ), flags );
+        #endif // USE_SSL
     if( !listener || !listener->Valid() )
     {
         printf( " [!] Error listening on: %s:%s\n", address.c_str(), port.c_str() );

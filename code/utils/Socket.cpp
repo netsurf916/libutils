@@ -161,9 +161,12 @@ namespace utils
             #ifdef USE_SSL
             if( m_flags.IsSet( SocketFlags::Secure ) )
             {
-                const SSL_METHOD *method = ( m_flags.IsSet( SocketFlags::Server ) )? SSLv23_server_method(): SSLv23_client_method();
-                m_sslctx = SSL_CTX_new( method );
+                m_sslctx = SSL_CTX_new( TLS_method() );
                 m_valid = ( m_sslctx != nullptr );
+                if( m_valid )
+                {
+                    SSL_CTX_set_min_proto_version( m_sslctx, TLS1_2_VERSION );
+                }
                 m_valid = m_valid && ( SSL_CTX_use_certificate_file( m_sslctx, a_certfile, SSL_FILETYPE_PEM ) > 0 );
                 m_valid = m_valid && ( SSL_CTX_use_PrivateKey_file( m_sslctx, a_keyfile, SSL_FILETYPE_PEM ) > 0 );
             }
@@ -233,13 +236,88 @@ namespace utils
         return m_error;
     }
 
-    bool Socket::ReadLine( ::std::shared_ptr< Buffer > &a_buffer, const uint32_t a_timeout /* = 1000 */ )
+    #ifdef USE_SSL
+    bool Socket::ReadLine_SSL( ::std::shared_ptr< Buffer > &a_buffer, const uint32_t a_timeout /* = 1000 */ )
     {
+        ::utils::Lock lock( this );
         if( !a_buffer )
         {
             return false;
         }
+        ::utils::Lock valueLock( a_buffer.get() );
+        uint8_t data = 0;
+        uint32_t timeout = a_timeout;
+        bool done = !Valid();
+        while( !done && ( timeout > 0 ) )
+        {
+            int32_t result = SSL_peek( m_ssl, &data, sizeof( data ) );
+            if( ( result > 0 ) && ( a_buffer->Space() > 0 ) )
+            {
+                timeout = a_timeout;
+                result = SSL_read( m_ssl, &data, sizeof( data ) );
+                if( result > 0 )
+                {
+                    switch( data )
+                    {
+                        case '\n': // Handle '\n' and "\n\r"
+                            result = SSL_peek( m_ssl, &data, sizeof( data ) );
+                            if( ( result > 0 ) && ( data == '\r' ) )
+                            {
+                                result = SSL_read( m_ssl, &data, sizeof( data ) );
+                            }
+                            done = true;
+                            break;
+                        case '\r': // Handle '\r' and "\r\n"
+                            result = SSL_peek( m_ssl, &data, sizeof( data ) );
+                            if( ( result > 0 ) && ( data == '\n' ) )
+                            {
+                                result = SSL_read( m_ssl, &data, sizeof( data ) );
+                            }
+                            done = true;
+                            break;
+                        default:
+                            a_buffer->Write( data );
+                            break;
+                    }
+                }
+            }
+            else if( result > 0 )
+            {
+                usleep( 1000 );
+                --timeout;
+            }
+            if( result <= 0 )
+            {
+                done    = true;
+                m_error = SSL_get_error( m_ssl, result );
+                if( ( m_error != SSL_ERROR_WANT_READ ) && ( m_error != SSL_ERROR_NONE ) )
+                {
+                    Shutdown();
+                }
+            }
+        }
+        if( timeout == 0 )
+        {
+            m_error = ETIMEDOUT;
+        }
+        return done;
+    }
+    #endif // USE_SSL
+
+    bool Socket::ReadLine( ::std::shared_ptr< Buffer > &a_buffer, const uint32_t a_timeout /* = 1000 */ )
+    {
+        #ifdef USE_SSL
+        if( m_flags.IsSet( SocketFlags::Secure ) )
+        {
+            return ReadLine_SSL( a_buffer, a_timeout );
+        }
+        #endif // USE_SSL
         ::utils::Lock lock( this );
+        if( !a_buffer )
+        {
+            return false;
+        }
+        ::utils::Lock valueLock( a_buffer.get() );
         uint8_t data = 0;
         uint32_t timeout = a_timeout;
         bool done = !Valid();
@@ -383,7 +461,7 @@ namespace utils
             {
                 result = recv( m_sockfd, &a_value, sizeof( uint8_t ), 0 );
             }
-            if( result <= 0 )
+            if( result < 0 )
             {
                 m_error = errno;
                 if( ( m_error != EAGAIN ) && ( m_error != EWOULDBLOCK ) )
@@ -419,7 +497,6 @@ namespace utils
                 {
                     Shutdown();
                 }
-                read = 0;
             }
         }
         return static_cast< uint32_t >( read );
@@ -521,7 +598,7 @@ namespace utils
         if( ok )
         {
             int32_t result = recv( m_sockfd, &a_value, sizeof( uint8_t ), MSG_PEEK | MSG_DONTWAIT );
-            if( result <= 0 )
+            if( result < 0 )
             {
                 m_error = errno;
                 if( ( m_error != EAGAIN ) && ( m_error != EWOULDBLOCK ) )
@@ -553,7 +630,6 @@ namespace utils
                 {
                     Shutdown();
                 }
-                read = 0;
             }
         }
         return static_cast< uint32_t >( read );
@@ -640,7 +716,7 @@ namespace utils
         if( ok )
         {
             int32_t result = SSL_write( m_ssl, &a_value, sizeof( uint8_t ) );
-            if( result < 0 )
+            if( result <= 0 )
             {
                 m_error = SSL_get_error( m_ssl, result );
                 if( ( m_error != SSL_ERROR_WANT_WRITE ) && ( m_error != SSL_ERROR_NONE ) )
@@ -724,28 +800,24 @@ namespace utils
         {
             return Valid();
         }
-        uint32_t sent = 0;
-        if( Valid() && ( a_length > 0 ) )
+        uint32_t total = 0;
+        while( Valid() && ( a_length > total ) )
         {
-            int32_t result = 0;
-            do
+            int32_t result = send( m_sockfd, a_value + total, ( a_length - total ), 0 );
+            if( result > 0 )
             {
-                result = send( m_sockfd, a_value + sent, ( a_length - sent ), 0 );
-                if( result > 0 )
-                {
-                    sent += result;
-                }
-                if( 0 == result )
-                {
-                    usleep( 500 );
-                }
-            } while( ( result >= 0 ) && ( sent < a_length ) && Valid() );
+                total += result;
+            }
+            if( 0 == result )
+            {
+                usleep( 500 );
+            }
             if( result < 0 )
             {
                 Shutdown();
             }
         }
-        return sent;
+        return total;
     }
 
     bool Socket::Write( ::std::shared_ptr< Buffer > &a_buffer ) noexcept
@@ -757,19 +829,14 @@ namespace utils
         }
         ::utils::Lock valueLock( a_buffer.get() );
         uint32_t sent = 0;
-        while( a_buffer->Length() > 0 )
+        while( Valid() && ( a_buffer->Length() > 0 ) )
         {
-            int32_t result = 0;
             a_buffer->Defragment();
-            result = Write( a_buffer->Value(), a_buffer->Length() );
+            int32_t result = Write( a_buffer->Value(), a_buffer->Length() );
             if( result > 0 )
             {
                 a_buffer->TrimLeft( result );
                 sent += result;
-            }
-            else
-            {
-                break;
             }
         }
         return Valid();

@@ -113,7 +113,7 @@ namespace utils
         {
             return false;
         }
-        utils::Lock   valueLock( a_socket.get() );
+        utils::Lock valueLock( a_socket.get() );
 
         ::std::shared_ptr< Buffer > recvb = ::std::make_shared< Buffer >( MAXBUFFERLEN );
 
@@ -131,10 +131,11 @@ namespace utils
         // Get the HTTP request
         while( a_socket->Valid() && ( timeout > 0 ) )
         {
-            // Wait a bit for data before calling ReadLine()
-            usleep( 10000 );
+            // Read a line of data from the client
             if( !a_socket->ReadLine( recvb ) )
             {
+                // Wait a bit before trying again
+                usleep( 10000 );
                 --timeout;
                 continue;
             }
@@ -324,7 +325,10 @@ namespace utils
                 sendb->Write( ( const uint8_t * )"Content-type: text/html\r\n" );
                 sendb->Write( ( const uint8_t * )"Content-length: 57\r\n\r\n" );
                 sendb->Write( ( const uint8_t * )"<html><head><center>Not Found!</center></head></html>\r\n\r\n" );
-                while( a_socket->Write( sendb ) );
+                while( sendb->Length() && a_socket->Valid() )
+                {
+                    a_socket->Write( sendb );
+                }
                 return 404;
             }
             return -1;
@@ -336,7 +340,10 @@ namespace utils
             sendb->Write( ( const uint8_t * )"Content-type: text/html\r\n" );
             sendb->Write( ( const uint8_t * )"Content-length: 55\r\n\r\n" );
             sendb->Write( ( const uint8_t * )"<html><head><center>Timeout!</center></head></html>\r\n\r\n" );
-            while( a_socket->Write( sendb ) );
+            while( sendb->Length() && a_socket->Valid() )
+            {
+                a_socket->Write( sendb );
+            }
             return 408;
         }
         else if( ( ( m_method  == "HEAD" ) ||
