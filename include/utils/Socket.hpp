@@ -86,6 +86,11 @@ namespace utils
             #endif // USE_SSL
 
         public:
+            #ifdef USE_SSL
+            // SSL negotiation functions
+            void    Start_SSL();
+            #endif // USE_SSL
+
             bool    Valid();
             ::std::shared_ptr< Socket > Accept( ::std::string &a_address, uint32_t &a_port );
             int32_t LastError();

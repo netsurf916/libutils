@@ -196,6 +196,10 @@ void *ProcessClient( void *a_client )
     }
 
     printf( " [+] Processing client (id: %u)\n", context->id );
+    #ifdef USE_SSL
+    context->socket->Start_SSL();
+    #endif // USE_SSL
+
     if( context->socket->Valid() && httpRequest->Read( context->socket ) )
     {
         httpRequest->RemoteAddress() = context->address;

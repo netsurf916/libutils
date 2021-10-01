@@ -175,6 +175,16 @@ namespace utils
         return sockfd;
     }
 
+    #ifdef USE_SSL
+    void Socket::Start_SSL()
+    {
+        if( m_flags.IsSet( SocketFlags::Secure ) )
+        {
+            m_valid = ( SSL_accept( m_ssl ) > 0 );
+        }
+    }
+    #endif // USE_SSL
+
     bool Socket::Valid()
     {
         ::utils::Lock lock( this );
@@ -216,7 +226,6 @@ namespace utils
                 {
                     client->m_ssl = SSL_new( m_sslctx );
                     SSL_set_fd( client->m_ssl, client_fd );
-                    client->m_valid = ( SSL_accept( client->m_ssl ) > 0 );
                 }
                 #endif // USE_SSL
             }
