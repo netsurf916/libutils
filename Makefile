@@ -7,7 +7,7 @@ CXXFLAGS    = -std=c++17
 
 INCLUDES    = -I./include/ -I/usr/local/include/
 
-LIBS        = -lutils -lpthread
+LIBS        = -lutils -lpthread -lssl -lcrypto
 LIBPATHS    = -L./ -L/usr/local/lib/
 
 SRCDIR      = code/utils/

@@ -18,6 +18,11 @@ namespace utils
     {
     }
 
+    BitMask::BitMask( const utils::BitMask &a_bitMask )
+    : m_bitMask( a_bitMask.m_bitMask )
+    {
+    }
+
     BitMask::~BitMask()
     {
         m_bitMask = 0;

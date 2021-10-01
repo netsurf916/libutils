@@ -20,52 +20,40 @@
 #define DEFMIME    "none" // Make sure this is defined in the ini file
 
 using namespace utils;
+using namespace std;
 
 struct ThreadCTX : public Lockable
 {
-    ::std::shared_ptr< Socket >  socket;
-    ::std::shared_ptr< LogFile > logger;
-    ::std::shared_ptr< IniFile > settings;
-    ::std::string                address;
-    uint32_t                     port;
-    uint32_t                     id;
+    shared_ptr< Socket >  socket;
+    shared_ptr< LogFile > logger;
+    shared_ptr< IniFile > settings;
+    string                address;
+    uint32_t              port;
+    uint32_t              id;
 };
 
 void *ProcessClient( void *a_client );
-void  PrintHttpRequest( ::std::shared_ptr< HttpRequest > &a_request );
+void  PrintHttpRequest( shared_ptr< HttpRequest > &a_request );
 
 int main( int argc, char *argv[] )
 {
     UNUSED( argc );
     UNUSED( argv );
 
-    uid_t runningAs = getuid();
-
-    // Try for root
-    if( 0 != runningAs )
-    {
-        if( 0 == setuid( 0 ) )
-        {
-            printf( " [!] Assuming admin privileges.\n" );
-        }
-        else
-        {
-            printf( " [!] Insufficient privileges!\n" );
-        }
-    }
-
-    ::std::shared_ptr< LogFile > logger   = ::std::make_shared< LogFile >( "httpd.log" );
-    ::std::shared_ptr< IniFile > settings = ::std::make_shared< IniFile >( "httpd.ini" );
+    shared_ptr< LogFile > logger   = make_shared< LogFile >( "httpd.log" );
+    shared_ptr< IniFile > settings = make_shared< IniFile >( "httpd.ini" );
 
     if( !( logger ) || !( settings ) )
     {
         return 0;
     }
 
-    ::std::string port;
-    ::std::string address;
+    #ifdef USE_SSL
+    string port;
+    string address;
     settings->ReadValue( "settings", "port",    port );
     settings->ReadValue( "settings", "address", address );
+    #endif // USE_SSL
 
     if( ( 0 == port.length() ) || ( 0 == address.length() ) )
     {
@@ -73,33 +61,51 @@ int main( int argc, char *argv[] )
         return 0;
     }
 
-    ::std::shared_ptr< Socket > listener = ::std::make_shared< Socket >( address.c_str(), ::std::stoi( port ), SocketFlags::TcpServer );
+    string keyfile;
+    string certfile;
+    bool useTls = settings->ReadValue( "settings", "keyfile",  keyfile );
+    useTls = useTls && settings->ReadValue( "settings", "certfile", certfile );
+    useTls = useTls && ( keyfile.length() > 0 ) && ( certfile.length() > 0 );
+
+    // Try for root if the requested port is < 1024
+    uid_t runningAs = getuid();
+    bool  gotRoot = ( ( 0 != runningAs ) && ( stoi( port ) < 1024 ) && ( 0 == setuid( 0 ) ) );
+
+    // Start the listener
+    uint32_t flags = ( useTls )? SocketFlags::TlsServer: SocketFlags::TcpServer;
+    shared_ptr< Socket > listener =
+    #ifdef USE_SSL
+        make_shared< Socket >( address.c_str(), stoi( port ), flags, keyfile.c_str(), certfile.c_str() );
+    #else // !USE_SSL
+        make_shared< Socket >( address.c_str(), stoi( port ), flags );
+    #endif // USE_SSL
     if( !listener || !listener->Valid() )
     {
-        printf( " [!] Error listening on: %s:%ld\n", address.c_str(), ::std::stol( port ) );
+        printf( " [!] Error listening on: %s:%s\n", address.c_str(), port.c_str() );
         return 0;
     }
 
-    printf( " [+] Listening for incoming connnections on: %s:%ld\n",
-        address.c_str(), ::std::stol( port ) );
+    // Give up root
+    if( gotRoot )
+    {
+        setuid( runningAs );
+    }
+
+    printf( " [+] Listening for incoming connnections on: %s:%s\n",
+        address.c_str(), port.c_str() );
     logger->Log( "Listening for incoming connections on: ", true, false );
     logger->Log( address, false, false );
     logger->Log( ":", false, false );
     logger->Log( port, false, true );
 
-    if( ( 0 != runningAs ) && ( 0 == setuid( runningAs ) ) )
-    {
-        printf( " [!] Giving up admin privileges.\n" );
-    }
-
-    ::std::shared_ptr< Thread< ThreadCTX > > clients[ NUMTHREADS ];
+    shared_ptr< Thread< ThreadCTX > > clients[ NUMTHREADS ];
 
     while( listener->Valid() )
     {
-        int32_t       clientfd = -1;
-        ::std::string address;
-        uint32_t      port = 0;
-        if( listener->Accept( clientfd, address, port ) )
+        string   address;
+        uint32_t port = 0;
+        shared_ptr< Socket > client = listener->Accept( address, port );
+        if( client )
         {
             bool found = false;
             printf( " [*] Client connected: %s:%u\n", address.c_str(), port );
@@ -113,10 +119,10 @@ int main( int argc, char *argv[] )
                     }
                     if( !( clients[ c ] ) )
                     {
-                        clients[ c ] = ::std::make_shared< Thread< ThreadCTX > >( ProcessClient );
+                        clients[ c ] = make_shared< Thread< ThreadCTX > >( ProcessClient );
                         if( clients[ c ] && clients[ c ]->GetContext() )
                         {
-                            clients[ c ]->GetContext()->socket   = ::std::make_shared< Socket >( clientfd );
+                            clients[ c ]->GetContext()->socket   = client;
                             clients[ c ]->GetContext()->logger   = logger;
                             clients[ c ]->GetContext()->settings = settings;
                             clients[ c ]->GetContext()->address  = address;
@@ -161,8 +167,8 @@ int main( int argc, char *argv[] )
 void *ProcessClient( void *a_client )
 {
     ThreadCTX *context = ( ThreadCTX * ) a_client;
-    ::std::shared_ptr< HttpRequest > httpRequest = ::std::make_shared< HttpRequest >();
-    ::std::shared_ptr< utils::Lock > lock        = ::std::make_shared< Lock >( context );
+    shared_ptr< HttpRequest > httpRequest = make_shared< HttpRequest >();
+    shared_ptr< utils::Lock > lock        = make_shared< Lock >( context );
 
     if( ( NULL == context          ) ||
        !( context->settings        ) ||
@@ -189,20 +195,20 @@ void *ProcessClient( void *a_client )
         httpRequest->RemoteAddress() = context->address;
         httpRequest->RemotePort()    = context->port;
         printf( " [+] Got HTTP request\n" );
-        ::std::string fileName;
-        ::std::string fileType;
-        ::std::string mimeType;
-        ::std::string hostHome;
-        ::std::string defaultDoc;
+        string fileName;
+        string fileType;
+        string mimeType;
+        string hostHome;
+        string defaultDoc;
         int response = 0;
         printf( " [*] Remote: %s:%u\n", context->address.c_str(), context->port );
         PrintHttpRequest( httpRequest );
         httpRequest->Log( *( context->logger ) );
 
         if( ( context->settings->ReadValue( "path", httpRequest->Host().c_str(), hostHome ) ||
-                context->settings->ReadValue( "path", "default", hostHome ) ) &&
+              context->settings->ReadValue( "path", "default", hostHome ) ) &&
             ( context->settings->ReadValue( "document", httpRequest->Host().c_str(), defaultDoc ) ||
-                context->settings->ReadValue( "document", "default", defaultDoc ) ) )
+              context->settings->ReadValue( "document", "default", defaultDoc ) ) )
         {
             fileName = httpRequest->Uri();
             mimeType = DEFMIME;
@@ -221,7 +227,7 @@ void *ProcessClient( void *a_client )
         {
             // Default mime type for internal responses
             mimeType = "text/plain";
-            ::std::string operation = fileName;
+            string operation = fileName;
             auto start = operation.rfind( '/' );
             auto end   = operation.rfind( '.' );
             operation = operation.substr( start + 1, end - start - 1 );
@@ -257,12 +263,12 @@ void *ProcessClient( void *a_client )
                 else if( "request" == operation )
                 {
                     mimeType = "text/html";
-                    ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > meta = httpRequest->Meta();
+                    shared_ptr< KeyValuePair< string, string > > meta = httpRequest->Meta();
                     httpRequest->Response() += "<html>\n <head>\n  <title>Client Request</title>\n </head>\n<body>";
                     httpRequest->Response() += "Client: ";
                     httpRequest->Response() += context->address;
                     httpRequest->Response() += ":";
-                    httpRequest->Response() += ::std::to_string( context->port );
+                    httpRequest->Response() += to_string( context->port );
                     httpRequest->Response() += "<br><br>\n";
                     httpRequest->Response() += httpRequest->Method();
                     httpRequest->Response() += " ";
@@ -323,13 +329,13 @@ void *ProcessClient( void *a_client )
     pthread_exit( NULL );
 }
 
-void PrintHttpRequest( ::std::shared_ptr< HttpRequest > &a_request )
+void PrintHttpRequest( shared_ptr< HttpRequest > &a_request )
 {
     if( a_request == NULL )
     {
         return;
     }
-    ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > start = a_request->Meta();
+    shared_ptr< KeyValuePair< string, string > > start = a_request->Meta();
     printf( " [+] %s %s %s\n", a_request->Method().c_str(), a_request->Uri().c_str(), a_request->Version().c_str() );
     while( start )
     {

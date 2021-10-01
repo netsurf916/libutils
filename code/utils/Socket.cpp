@@ -25,17 +25,38 @@ namespace utils
     , m_valid   ( a_sockfd >= 0 )
     , m_error   ( 0 )
     , m_flags   ( a_flags )
+    #ifdef USE_SSL
+    , m_sslctx  ( nullptr )
+    , m_ssl     ( nullptr )
+    #endif // USE_SSL
     {
     }
 
+    #ifdef USE_SSL
+    Socket::Socket( const char *a_address, uint32_t a_port, uint32_t a_flags /*= 0*/, const char *a_keyfile /*= ""*/, const char *a_certfile /*= ""*/ )
+    #else // !USE_SSL
     Socket::Socket( const char *a_address, uint32_t a_port, uint32_t a_flags /*= 0*/ )
+    #endif
     : m_valid ( false )
     , m_error ( 0 )
     , m_flags ( a_flags )
+    #ifdef USE_SSL
+    , m_sslctx  ( nullptr )
+    , m_ssl     ( nullptr )
+    #endif // USE_SSL
     {
         char port[ 32 ];
         snprintf( port, sizeof( port ), "%d", a_port );
+        #ifdef USE_SSL
+        if( m_flags.IsSet( SocketFlags::Secure ) )
+        {
+            SSL_load_error_strings();	
+            OpenSSL_add_ssl_algorithms();
+        }
+        m_sockfd = Initialize( a_address, port, a_keyfile, a_certfile );
+        #else // !USE_SSL
         m_sockfd = Initialize( a_address, port );
+        #endif
         if( m_sockfd < 0 )
         {
             m_valid = false;
@@ -48,7 +69,11 @@ namespace utils
         Shutdown();
     }
 
+    #ifdef USE_SSL
+    int32_t Socket::Initialize( const char *a_address, const char *a_service, const char *a_keyfile, const char *a_certfile )
+    #else // !USE_SSL
     int32_t Socket::Initialize( const char *a_address, const char *a_service )
+    #endif
     {
         int32_t sockfd = -1;
         if( a_address )
@@ -132,6 +157,17 @@ namespace utils
             sigemptyset( &act.sa_mask );
             act.sa_flags = 0;
             sigaction( SIGPIPE, &act, nullptr );
+            // Configure TLS
+            #ifdef USE_SSL
+            if( m_flags.IsSet( SocketFlags::Secure ) )
+            {
+                const SSL_METHOD *method = ( m_flags.IsSet( SocketFlags::Server ) )? SSLv23_server_method(): SSLv23_client_method();
+                m_sslctx = SSL_CTX_new( method );
+                m_valid = ( m_sslctx != nullptr );
+                m_valid = m_valid && ( SSL_CTX_use_certificate_file( m_sslctx, a_certfile, SSL_FILETYPE_PEM ) > 0 );
+                m_valid = m_valid && ( SSL_CTX_use_PrivateKey_file( m_sslctx, a_keyfile, SSL_FILETYPE_PEM ) > 0 );
+            }
+            #endif // USE_SSL
         }
         return sockfd;
     }
@@ -142,13 +178,13 @@ namespace utils
         return m_valid;
     }
 
-    bool Socket::Accept( int32_t &a_client, ::std::string &a_address, uint32_t &a_port )
+    ::std::shared_ptr< Socket > Socket::Accept( ::std::string &a_address, uint32_t &a_port )
     {
         ::utils::Lock lock( this );
         struct sockaddr_storage address;
-        socklen_t length = sizeof( address );
-        a_client = accept( m_sockfd, ( struct sockaddr * )&address, &length );
-        if( a_client >= 0 )
+        socklen_t length    = sizeof( address );
+        int32_t   client_fd = accept( m_sockfd, ( struct sockaddr * )&address, &length );
+        if( client_fd >= 0 )
         {
             uint32_t port = 0;
             char     addr[ INET6_ADDRSTRLEN + 1 ] = { 0 };
@@ -166,14 +202,29 @@ namespace utils
             }
             a_port    = port;
             a_address = addr;
-            return true;
+            utils::BitMask flags( m_flags );
+            flags.SetBit( SocketFlags::Server, false );
+            ::std::shared_ptr< Socket > client = ::std::make_shared< Socket >( client_fd, ( unsigned int )flags );
+            if( client )
+            {
+                client->m_flags.SetBit( SocketFlags::Server, false );
+                #ifdef USE_SSL
+                if( client->m_flags.IsSet( SocketFlags::Secure ) )
+                {
+                    client->m_ssl = SSL_new( m_sslctx );
+                    SSL_set_fd( client->m_ssl, client_fd );
+                    client->m_valid = ( SSL_accept( client->m_ssl ) > 0 );
+                }
+                #endif // USE_SSL
+            }
+            return client;
         }
         m_error = errno;
         if( ( m_error != EAGAIN ) && ( m_error != EWOULDBLOCK ) )
         {
             Shutdown();
         }
-        return false;
+        return nullptr;
     }
 
     int32_t Socket::LastError()
@@ -247,57 +298,27 @@ namespace utils
         return done;
     }
 
-    bool Socket::GetRemoteAddress( const ::std::shared_ptr< Socket > &a_socket, ::std::string &a_address, uint32_t &a_port )
-    {
-        if( !a_socket )
-        {
-            return false;
-        }
-        ::utils::Lock lock( Socket );
-        if( a_socket->m_flags[ SocketFlag::Server ] )
-        {
-            return false;
-        }
-        if( a_socket->Valid() )
-        {
-            uint32_t port = 0;
-            char     addr[ INET6_ADDRSTRLEN + 1 ] = { 0 };
-            struct sockaddr_storage address;
-            uint32_t length = sizeof( address );
-            if( 0 == getpeername( a_socket->m_sockfd, ( struct sockaddr * )&address, &length ) )
-            {
-                if ( address.ss_family == AF_INET )
-                {
-                    struct sockaddr_in *s = ( struct sockaddr_in * )&address;
-                    port = ntohs( s->sin_port );
-                    inet_ntop( AF_INET, &( s->sin_addr ), addr, sizeof( addr ) );
-                }
-                else
-                {
-                    struct sockaddr_in6 *s = ( struct sockaddr_in6 * )&address;
-                    port = ntohs( s->sin6_port );
-                    inet_ntop( AF_INET6, &( s->sin6_addr ), addr, sizeof( addr ) );
-                }
-                a_port    = port;
-                a_address = addr;
-            }
-            else if( !a_socket->m_flags[ SocketFlag::Server ] )
-            {
-                a_socket->m_error = errno;
-                a_socket->Shutdown();
-            }
-        }
-        return a_socket->Valid();
-    }
-
     void Socket::Shutdown()
     {
         ::utils::Lock lock( this );
         if( m_sockfd >= 0 )
         {
+            #ifdef USE_SSL
+            if( m_ssl != nullptr )
+            {
+                SSL_shutdown( m_ssl );
+                SSL_free( m_ssl );
+            }
+            #endif // USE_SSL
             fsync( m_sockfd );
             close( m_sockfd );
         }
+        #ifdef USE_SSL
+        if( m_sslctx != nullptr )
+        {
+            SSL_CTX_free( m_sslctx );
+        }
+        #endif // USE_SSL
         m_sockfd = -1;
         m_valid  = false;
         m_error  = errno;
@@ -319,32 +340,100 @@ namespace utils
         return false;
     }
 
+    #ifdef USE_SSL
+    bool Socket::Read_SSL( uint8_t &a_value, bool a_block /*= false*/ ) noexcept
+    {
+        ::utils::Lock lock( this );
+        bool ok = Valid() && m_flags.IsSet( SocketFlags::Secure );
+        if( ok )
+        {
+            int32_t result = SSL_peek( m_ssl, &a_value, sizeof( uint8_t ) );
+            if( ( result > 0 ) || a_block )
+            {
+                result = SSL_read( m_ssl, &a_value, sizeof( uint8_t ) );
+            }
+            if( result <= 0 )
+            {
+                m_error = SSL_get_error( m_ssl, result );
+                if( ( m_error != SSL_ERROR_WANT_READ ) && ( m_error != SSL_ERROR_NONE ) )
+                {
+                    Shutdown();
+                }
+                ok = false;
+            }
+        }
+        return ok;
+    }
+    #endif // USE_SSL
+
     bool Socket::Read( uint8_t &a_value, bool a_block /*= false*/ ) noexcept
     {
+        #ifdef USE_SSL
+        if( m_flags.IsSet( SocketFlags::Secure ) )
+        {
+            return Read_SSL( a_value, a_block );
+        }
+        #endif // USE_SSL
         ::utils::Lock lock( this );
         bool ok = Valid();
         if( ok )
         {
-            int32_t result = recv( m_sockfd, &a_value, sizeof( a_value ), MSG_PEEK | MSG_DONTWAIT );
+            int32_t result = recv( m_sockfd, &a_value, sizeof( uint8_t ), MSG_PEEK | MSG_DONTWAIT );
             if( ( sizeof( a_value ) == result ) || a_block )
             {
-                result = recv( m_sockfd, &a_value, sizeof( a_value ), 0 );
+                result = recv( m_sockfd, &a_value, sizeof( uint8_t ), 0 );
             }
             if( result <= 0 )
             {
                 m_error = errno;
                 if( ( m_error != EAGAIN ) && ( m_error != EWOULDBLOCK ) )
                 {
-                    ok = false;
                     Shutdown();
                 }
+                ok = false;
             }
         }
         return ok;
     }
 
+    #ifdef USE_SSL
+    uint32_t Socket::Read_SSL( uint8_t *a_value, uint32_t a_length, bool a_block /*= false*/ ) noexcept
+    {
+        ::utils::Lock lock( this );
+        if( ( nullptr == a_value ) || ( 0 == a_length ) || !m_flags.IsSet( SocketFlags::Secure ) )
+        {
+            return Valid();
+        }
+        size_t read = 0;
+        if( Valid() && ( a_length > 0 ) )
+        {
+            int32_t result = SSL_peek_ex( m_ssl, a_value, a_length, &read );
+            if( ( result > 0 ) || a_block )
+            {
+                result = SSL_read_ex( m_ssl, a_value, a_length, &read );
+            }
+            if( result <= 0 )
+            {
+                m_error = SSL_get_error( m_ssl, result );
+                if( ( m_error != SSL_ERROR_WANT_READ ) && ( m_error != SSL_ERROR_NONE ) )
+                {
+                    Shutdown();
+                }
+                read = 0;
+            }
+        }
+        return static_cast< uint32_t >( read );
+    }
+    #endif // USE_SSL
+
     uint32_t Socket::Read( uint8_t *a_value, uint32_t a_length, bool a_block /*= false*/ ) noexcept
     {
+        #ifdef USE_SSL
+        if( m_flags.IsSet( SocketFlags::Secure ) )
+        {
+            return Read_SSL( a_value, a_length, a_block );
+        }
+        #endif // USE_SSL
         ::utils::Lock lock( this );
         if( ( nullptr == a_value ) || ( 0 == a_length ) )
         {
@@ -374,38 +463,59 @@ namespace utils
     bool Socket::Read( ::std::shared_ptr< Buffer > &a_buffer, bool a_block /*= false*/ ) noexcept
     {
         ::utils::Lock lock( this );
-        bool ok = Valid();
-        if( ok && a_buffer && ( a_buffer->Space() > 0 ) )
+        if( !a_buffer )
         {
-            uint8_t *data = new uint8_t[ a_buffer->Space() ];
+            return Valid();
+        }
+        ::utils::Lock valueLock( a_buffer.get() );
+        uint32_t size = a_buffer->Space();
+        if( size > 0 )
+        {
+            uint8_t *data = new uint8_t[ size ];
             if( data )
             {
-                int32_t result = recv( m_sockfd, data, a_buffer->Space(), MSG_PEEK | MSG_DONTWAIT );
-                if( ( result > 0 ) || a_block )
+                uint32_t read = Read( data, size, a_block );
+                if( read > 0 )
                 {
-                    result = recv( m_sockfd, data, a_buffer->Space(), 0 );
-                    if( result > 0 )
-                    {
-                        ok = a_buffer->Write( data, result );
-                    }
-                }
-                if( result <= 0 )
-                {
-                    m_error = errno;
-                    if( ( m_error != EAGAIN ) && ( m_error != EWOULDBLOCK ) )
-                    {
-                        ok = false;
-                        Shutdown();
-                    }
+                    a_buffer->Write( data, read );
                 }
                 delete [] data;
+                data = nullptr;
+            }
+        }
+        return Valid();
+    }
+
+    #ifdef USE_SSL
+    bool Socket::Peek_SSL( uint8_t &a_value ) noexcept
+    {
+        ::utils::Lock lock( this );
+        bool ok = Valid() && m_flags.IsSet( SocketFlags::Secure );
+        if( ok )
+        {
+            int32_t result = SSL_peek( m_ssl, &a_value, sizeof( uint8_t ) );
+            if( result <= 0 )
+            {
+                m_error = SSL_get_error( m_ssl, result );
+                if( ( m_error != SSL_ERROR_WANT_READ ) && ( m_error != SSL_ERROR_NONE ) )
+                {
+                    Shutdown();
+                }
+                ok = false;
             }
         }
         return ok;
     }
+    #endif // USE_SSL
 
     bool Socket::Peek( uint8_t &a_value ) noexcept
     {
+        #ifdef USE_SSL
+        if( m_flags.IsSet( SocketFlags::Secure ) )
+        {
+            return Peek_SSL( a_value );
+        }
+        #endif // USE_SSL
         ::utils::Lock lock( this );
         bool ok = Valid();
         if( ok )
@@ -416,16 +526,48 @@ namespace utils
                 m_error = errno;
                 if( ( m_error != EAGAIN ) && ( m_error != EWOULDBLOCK ) )
                 {
-                    ok = false;
                     Shutdown();
                 }
+                ok = false;
             }
         }
         return ok;
     }
 
+    #ifdef USE_SSL
+    uint32_t Socket::Peek_SSL( uint8_t *a_value, uint32_t a_length ) noexcept
+    {
+        ::utils::Lock lock( this );
+        if( ( nullptr == a_value ) || ( 0 == a_length ) || !m_flags.IsSet( SocketFlags::Secure ) )
+        {
+            return Valid();
+        }
+        size_t read = 0;
+        if( Valid() && ( a_length > 0 ) )
+        {
+            int32_t result = SSL_peek_ex( m_ssl, a_value, a_length, &read );
+            if( result <= 0 )
+            {
+                m_error = SSL_get_error( m_ssl, result );
+                if( ( m_error != SSL_ERROR_WANT_READ ) && ( m_error != SSL_ERROR_NONE ) )
+                {
+                    Shutdown();
+                }
+                read = 0;
+            }
+        }
+        return static_cast< uint32_t >( read );
+    }
+    #endif // USE_SSL
+
     uint32_t Socket::Peek( uint8_t *a_value, uint32_t a_length ) noexcept
     {
+        #ifdef USE_SSL
+        if( m_flags.IsSet( SocketFlags::Secure ) )
+        {
+            return Peek_SSL( a_value, a_length );
+        }
+        #endif // USE_SSL
         ::utils::Lock lock( this );
         if( ( nullptr == a_value ) || ( 0 == a_length ) )
         {
@@ -451,30 +593,27 @@ namespace utils
     bool Socket::Peek( ::std::shared_ptr< Buffer > &a_buffer ) noexcept
     {
         ::utils::Lock lock( this );
-        bool ok = Valid();
-        if( ok && a_buffer && ( a_buffer->Space() > 0 ) )
+        if( !a_buffer )
         {
-            uint8_t *data = new uint8_t[ a_buffer->Space() ];
+            return Valid();
+        }
+        ::utils::Lock valueLock( a_buffer.get() );
+        uint32_t size = a_buffer->Space();
+        if( size > 0 )
+        {
+            uint8_t *data = new uint8_t[ size ];
             if( data )
             {
-                int32_t result = recv( m_sockfd, data, a_buffer->Space(), MSG_PEEK | MSG_DONTWAIT );
-                if( result > 0 )
+                uint32_t read = Peek( data, size );
+                if( read > 0 )
                 {
-                    ok = a_buffer->Write( data, result );
-                }
-                if( result <= 0 )
-                {
-                    m_error = errno;
-                    if( ( m_error != EAGAIN ) && ( m_error != EWOULDBLOCK ) )
-                    {
-                        ok = false;
-                        Shutdown();
-                    }
+                    a_buffer->Write( data, read );
                 }
                 delete [] data;
+                data = nullptr;
             }
         }
-        return ok;
+        return Valid();
     }
 
     bool Socket::IsWritable() noexcept
@@ -493,8 +632,36 @@ namespace utils
         return false;
     }
 
+    #ifdef USE_SSL
+    bool Socket::Write_SSL( const uint8_t &a_value ) noexcept
+    {
+        ::utils::Lock lock( this );
+        bool ok = Valid();
+        if( ok )
+        {
+            int32_t result = SSL_write( m_ssl, &a_value, sizeof( uint8_t ) );
+            if( result < 0 )
+            {
+                m_error = SSL_get_error( m_ssl, result );
+                if( ( m_error != SSL_ERROR_WANT_WRITE ) && ( m_error != SSL_ERROR_NONE ) )
+                {
+                    Shutdown();
+                }
+                ok = false;
+            }
+        }
+        return ok;
+    }
+    #endif // USE_SSL
+
     bool Socket::Write( const uint8_t &a_value ) noexcept
     {
+        #ifdef USE_SSL
+        if( m_flags.IsSet( SocketFlags::Secure ) )
+        {
+            return Write_SSL( a_value );
+        }
+        #endif // USE_SSL
         ::utils::Lock lock( this );
         bool ok = Valid();
         if( ok )
@@ -509,8 +676,49 @@ namespace utils
         return ok;
     }
 
+    #ifdef USE_SSL
+    uint32_t Socket::Write_SSL( const uint8_t *a_value, uint32_t a_length ) noexcept
+    {
+        ::utils::Lock lock( this );
+        if( nullptr == a_value )
+        {
+            return Valid();
+        }
+        uint32_t total = 0;
+        while( Valid() && ( a_length > total ) )
+        {
+            int32_t result = 0;
+            size_t  sent = 0;
+            result = SSL_write_ex( m_ssl, a_value + total, ( a_length - total ), &sent );
+            if( result > 0 )
+            {
+                total += sent;
+            }
+            if( result <= 0 )
+            {
+                m_error = SSL_get_error( m_ssl, result );
+                if( ( m_error != SSL_ERROR_WANT_WRITE ) && ( m_error != SSL_ERROR_NONE ) )
+                {
+                    Shutdown();
+                }
+                else
+                {
+                    usleep( 500 );
+                }
+            }
+        }
+        return total;
+    }
+    #endif // USE_SSL
+
     uint32_t Socket::Write( const uint8_t *a_value, uint32_t a_length ) noexcept
     {
+        #ifdef USE_SSL
+        if( m_flags.IsSet( SocketFlags::Secure ) )
+        {
+            return Write_SSL( a_value, a_length );
+        }
+        #endif // USE_SSL
         ::utils::Lock lock( this );
         if( nullptr == a_value )
         {
@@ -543,29 +751,27 @@ namespace utils
     bool Socket::Write( ::std::shared_ptr< Buffer > &a_buffer ) noexcept
     {
         ::utils::Lock lock( this );
+        if( !a_buffer )
+        {
+            return Valid();
+        }
+        ::utils::Lock valueLock( a_buffer.get() );
         uint32_t sent = 0;
-        if( Valid() && a_buffer && ( a_buffer->Length() > 0 ) )
+        while( a_buffer->Length() > 0 )
         {
             int32_t result = 0;
             a_buffer->Defragment();
-            do
+            result = Write( a_buffer->Value(), a_buffer->Length() );
+            if( result > 0 )
             {
-                result = send( m_sockfd, *a_buffer, a_buffer->Length(), 0 );
-                if( result > 0 )
-                {
-                    a_buffer->TrimLeft( result );
-                    sent += result;
-                }
-                if( 0 == result )
-                {
-                    usleep( 500 );
-                }
-            } while( ( result >= 0 ) && ( a_buffer->Length() > 0 ) && Valid() );
-            if( result < 0 )
+                a_buffer->TrimLeft( result );
+                sent += result;
+            }
+            else
             {
-                Shutdown();
+                break;
             }
         }
-        return ( sent > 0 );
+        return Valid();
     }
 }

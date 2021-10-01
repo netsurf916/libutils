@@ -21,6 +21,7 @@ namespace utils
         public:
             BitMask();
             BitMask( uint32_t a_value );
+            BitMask( const utils::BitMask &a_bitMask );
             ~BitMask();
 
             operator uint32_t();
