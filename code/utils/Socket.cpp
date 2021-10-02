@@ -162,13 +162,19 @@ namespace utils
             if( m_flags.IsSet( SocketFlags::Secure ) )
             {
                 m_sslctx = SSL_CTX_new( TLS_method() );
-                m_valid = ( m_sslctx != nullptr );
-                if( m_valid )
+                if( m_sslctx != nullptr )
                 {
                     SSL_CTX_set_min_proto_version( m_sslctx, TLS1_2_VERSION );
+                    if( ( SSL_CTX_use_certificate_file( m_sslctx, a_certfile, SSL_FILETYPE_PEM ) <= 0 ) ||
+                        ( SSL_CTX_use_PrivateKey_file ( m_sslctx, a_keyfile,  SSL_FILETYPE_PEM ) <= 0 ) )
+                    {
+                        Shutdown();
+                    }
                 }
-                m_valid = m_valid && ( SSL_CTX_use_certificate_file( m_sslctx, a_certfile, SSL_FILETYPE_PEM ) > 0 );
-                m_valid = m_valid && ( SSL_CTX_use_PrivateKey_file( m_sslctx, a_keyfile, SSL_FILETYPE_PEM ) > 0 );
+                else
+                {
+                    Shutdown();
+                }
             }
             #endif // USE_SSL
         }
@@ -180,7 +186,23 @@ namespace utils
     {
         if( m_flags.IsSet( SocketFlags::Secure ) )
         {
-            m_valid = ( SSL_accept( m_ssl ) > 0 );
+            if( m_ssl != nullptr )
+            {
+                if( SSL_accept( m_ssl ) <= 0 )
+                {
+                    Shutdown();
+                }
+            }
+            else
+            {
+                // TODO: check the state of CTX and SSL, generate if needed
+                //       CTX must be generated for a client in case this is
+                //       a new client and not a connected session
+                //m_valid = ( SSL_connect( m_ssl ) > 0 );
+
+                // Kill the connection for now if this state occurs
+                Shutdown();
+            }
         }
     }
     #endif // USE_SSL
@@ -297,10 +319,15 @@ namespace utils
             }
             if( result <= 0 )
             {
-                done    = true;
                 m_error = SSL_get_error( m_ssl, result );
-                if( ( m_error != SSL_ERROR_WANT_READ ) && ( m_error != SSL_ERROR_NONE ) )
+                if( ( m_error == SSL_ERROR_WANT_READ ) || ( m_error == SSL_ERROR_NONE ) )
                 {
+                    usleep( 1000 );
+                    --timeout;
+                }
+                else
+                {
+                    done = true;
                     Shutdown();
                 }
             }
@@ -330,10 +357,10 @@ namespace utils
         uint8_t data = 0;
         uint32_t timeout = a_timeout;
         bool done = !Valid();
-        while( !done && ( timeout > 0 ) )
+        while( !done && ( timeout > 0 ) && ( a_buffer->Space() > 0 ) )
         {
             int32_t result = recv( m_sockfd, &data, sizeof( data ), MSG_PEEK | MSG_DONTWAIT );
-            if( ( result > 0 ) && ( a_buffer->Space() > 0 ) )
+            if( result > 0 )
             {
                 timeout = a_timeout;
                 result = recv( m_sockfd, &data, sizeof( data ), 0 );
@@ -363,17 +390,22 @@ namespace utils
                     }
                 }
             }
-            else if( result >= 0 )
+            else
             {
                 usleep( 1000 );
                 --timeout;
             }
             if( result < 0 )
             {
-                done    = true;
                 m_error = errno;
-                if( ( m_error != EAGAIN ) && ( m_error != EWOULDBLOCK ) )
+                if( ( m_error == EAGAIN ) || ( m_error == EWOULDBLOCK ) )
                 {
+                    usleep( 1000 );
+                    --timeout;
+                }
+                else
+                {
+                    done = true;
                     Shutdown();
                 }
             }
@@ -388,24 +420,24 @@ namespace utils
     void Socket::Shutdown()
     {
         ::utils::Lock lock( this );
-        if( m_sockfd >= 0 )
-        {
-            #ifdef USE_SSL
-            if( m_ssl != nullptr )
-            {
-                SSL_shutdown( m_ssl );
-                SSL_free( m_ssl );
-            }
-            #endif // USE_SSL
-            fsync( m_sockfd );
-            close( m_sockfd );
-        }
         #ifdef USE_SSL
+        if( m_ssl != nullptr )
+        {
+            SSL_shutdown( m_ssl );
+            SSL_free( m_ssl );
+            m_ssl = nullptr;
+        }
         if( m_sslctx != nullptr )
         {
             SSL_CTX_free( m_sslctx );
+            m_sslctx = nullptr;
         }
         #endif // USE_SSL
+        if( m_sockfd >= 0 )
+        {
+            fsync( m_sockfd );
+            close( m_sockfd );
+        }
         m_sockfd = -1;
         m_valid  = false;
         m_error  = errno;
@@ -779,16 +811,16 @@ namespace utils
             {
                 total += sent;
             }
-            if( result <= 0 )
+            else
             {
                 m_error = SSL_get_error( m_ssl, result );
-                if( ( m_error != SSL_ERROR_WANT_WRITE ) && ( m_error != SSL_ERROR_NONE ) )
+                if( ( m_error == SSL_ERROR_WANT_WRITE ) || ( m_error == SSL_ERROR_NONE ) )
                 {
-                    Shutdown();
+                    usleep( 500 );
                 }
                 else
                 {
-                    usleep( 500 );
+                    Shutdown();
                 }
             }
         }

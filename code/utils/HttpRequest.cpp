@@ -325,7 +325,7 @@ namespace utils
                 sendb->Write( ( const uint8_t * )"Content-type: text/html\r\n" );
                 sendb->Write( ( const uint8_t * )"Content-length: 57\r\n\r\n" );
                 sendb->Write( ( const uint8_t * )"<html><head><center>Not Found!</center></head></html>\r\n\r\n" );
-                while( sendb->Length() && a_socket->Valid() )
+                while( ( sendb->Length() > 0 ) && a_socket->Valid() )
                 {
                     a_socket->Write( sendb );
                 }

@@ -3,7 +3,7 @@
 ## httpd - web server implementation example
 To build this example, execute `make httpd`.
 
-The included `httpd.ini` contains a starting configuration for a listener on port 80 with a minimal set of mime-types.  The server will default to `none` if there is no extension on the requested file or if there is no defined mime-type for the extension that is present.
+The included `httpd.ini` contains a starting configuration for a listener on port 8000 with a minimal set of mime-types.  The server will default to `none` if there is no extension on the requested file or if there is no defined mime-type for the extension that is present.
 
 This server is primarily designed for simple tasks such as minimal (html only) websites and the quick sharing of data.  The most complex feature it implements is the ability to resume downloads with, e.g., `wget -c <URL>`.
 

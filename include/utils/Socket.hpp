@@ -36,7 +36,7 @@ namespace utils
             UdpClient = ( 0                                    ),
             UdpServer = (            BIT(Server)               ),
             #ifdef USE_SSL
-            TlsClient = ( BIT(TCP) |               BIT(Secure) ), // TODO: Not implemented yet
+            //TlsClient = ( BIT(TCP) |               BIT(Secure) ), // TODO: Not implemented yet in Start_SSL()
             TlsServer = ( BIT(TCP) | BIT(Server) | BIT(Secure) ),
             #endif // USE_SSL
         };
