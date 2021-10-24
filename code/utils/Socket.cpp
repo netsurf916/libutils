@@ -45,7 +45,7 @@ namespace utils
     , m_ssl     ( nullptr )
     #endif // USE_SSL
     {
-        char port[ 32 ];
+        char port[ 16 ]; // 32-bit input could be 10 digits + 1 for NULL terminator, so 11 minimum should be allocated
         snprintf( port, sizeof( port ), "%d", a_port );
         #ifdef USE_SSL
         if( m_flags.IsSet( SocketFlags::Secure ) )
@@ -279,10 +279,10 @@ namespace utils
         uint8_t data = 0;
         uint32_t timeout = a_timeout;
         bool done = !Valid();
-        while( !done && ( timeout > 0 ) )
+        while( !done && ( timeout > 0 ) && ( a_buffer->Space() > 0 ) )
         {
             int32_t result = SSL_peek( m_ssl, &data, sizeof( data ) );
-            if( ( result > 0 ) && ( a_buffer->Space() > 0 ) )
+            if( result > 0 )
             {
                 timeout = a_timeout;
                 result = SSL_read( m_ssl, &data, sizeof( data ) );
@@ -312,17 +312,12 @@ namespace utils
                     }
                 }
             }
-            else if( result > 0 )
-            {
-                usleep( 1000 );
-                --timeout;
-            }
             if( result <= 0 )
             {
                 m_error = SSL_get_error( m_ssl, result );
                 if( ( m_error == SSL_ERROR_WANT_READ ) || ( m_error == SSL_ERROR_NONE ) )
                 {
-                    usleep( 1000 );
+                    usleep( 100 );
                     --timeout;
                 }
                 else
@@ -390,17 +385,12 @@ namespace utils
                     }
                 }
             }
-            else
-            {
-                usleep( 1000 );
-                --timeout;
-            }
-            if( result < 0 )
+            if( result <= 0 )
             {
                 m_error = errno;
                 if( ( m_error == EAGAIN ) || ( m_error == EWOULDBLOCK ) )
                 {
-                    usleep( 1000 );
+                    usleep( 100 );
                     --timeout;
                 }
                 else
