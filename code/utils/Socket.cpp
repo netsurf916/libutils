@@ -210,6 +210,13 @@ namespace utils
     bool Socket::Valid()
     {
         ::utils::Lock lock( this );
+        // The socket is valid if m_valid is true and one of the following is true:
+        // * running a listening socket
+        // * the fd can be written to
+        // * the fd can be read from
+        // The order is important because IsReadable() waits for data and should not be
+        // called unless necessary.
+        m_valid = m_valid && ( m_flags.IsSet( SocketFlag::Server ) || IsWritable() || IsReadable() );
         return m_valid;
     }
 
@@ -435,18 +442,19 @@ namespace utils
 
     bool Socket::IsReadable() noexcept
     {
+        // Cannot use Valid() since Valid() may call IsReadable()
         ::utils::Lock lock( this );
-        if( Valid() )
+        if( m_valid )
         {
             struct pollfd pfd;
             pfd.fd = m_sockfd;
             pfd.events = ( POLLIN | POLLPRI | POLLRDBAND );
-            if( poll( &pfd, 1, RWTIMEOUTMS ) > 0 )
+            if( poll( &pfd, 1, RWTIMEOUTMS ) < 0 )
             {
-                return true;
+                return false;
             }
         }
-        return false;
+        return m_valid;
     }
 
     #ifdef USE_SSL
@@ -492,7 +500,7 @@ namespace utils
             {
                 result = recv( m_sockfd, &a_value, sizeof( uint8_t ), 0 );
             }
-            if( result < 0 )
+            if( result <= 0 )
             {
                 m_error = errno;
                 if( ( m_error != EAGAIN ) && ( m_error != EWOULDBLOCK ) )
@@ -629,7 +637,7 @@ namespace utils
         if( ok )
         {
             int32_t result = recv( m_sockfd, &a_value, sizeof( uint8_t ), MSG_PEEK | MSG_DONTWAIT );
-            if( result < 0 )
+            if( result <= 0 )
             {
                 m_error = errno;
                 if( ( m_error != EAGAIN ) && ( m_error != EWOULDBLOCK ) )
@@ -725,18 +733,19 @@ namespace utils
 
     bool Socket::IsWritable() noexcept
     {
+        // Cannot use Valid() since Valid() may call IsWritable()
         ::utils::Lock lock( this );
-        if( Valid() )
+        if( m_valid )
         {
             struct pollfd pfd;
             pfd.fd = m_sockfd;
             pfd.events = ( POLLOUT | POLLWRNORM | POLLWRBAND );
-            if( poll( &pfd, 1, RWTIMEOUTMS ) > 0 )
+            if( poll( &pfd, 1, RWTIMEOUTMS ) < 0 )
             {
-                return true;
+                return false;
             }
         }
-        return false;
+        return m_valid;
     }
 
     #ifdef USE_SSL
@@ -854,13 +863,13 @@ namespace utils
     bool Socket::Write( ::std::shared_ptr< Buffer > &a_buffer ) noexcept
     {
         ::utils::Lock lock( this );
-        if( !a_buffer )
+        if( !a_buffer || !Valid() )
         {
-            return Valid();
+            return false;
         }
         ::utils::Lock valueLock( a_buffer.get() );
         uint32_t sent = 0;
-        while( Valid() && ( a_buffer->Length() > 0 ) )
+        if( a_buffer->Length() > 0 )
         {
             a_buffer->Defragment();
             int32_t result = Write( a_buffer->Value(), a_buffer->Length() );
@@ -870,6 +879,6 @@ namespace utils
                 sent += result;
             }
         }
-        return Valid();
+        return ( sent > 0 );
     }
 }

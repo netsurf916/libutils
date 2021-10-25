@@ -506,7 +506,10 @@ namespace utils
                 sendb->Write( ( const uint8_t * )"Content-type: text/html\r\n" );
                 sendb->Write( ( const uint8_t * )"Content-length: 57\r\n\r\n" );
                 sendb->Write( ( const uint8_t * )"<html><head><center>Not Found!</center></head></html>\r\n\r\n" );
-                while( a_socket->Write( sendb ) );
+                while( sendb->Length() && a_socket->Valid() )
+                {
+                    a_socket->Write( sendb );
+                }
                 return 404;
             }
         }
@@ -518,7 +521,10 @@ namespace utils
             sendb->Write( ( const uint8_t * )"Content-type: text/html\r\n" );
             sendb->Write( ( const uint8_t * )"Content-length: 59\r\n\r\n" );
             sendb->Write( ( const uint8_t * )"<html><head><center>Not Allowed!</center></head></html>\r\n\r\n" );
-            while( a_socket->Write( sendb ) );
+            while( sendb->Length() && a_socket->Valid() )
+            {
+                a_socket->Write( sendb );
+            }
             return 405;
         }
     }

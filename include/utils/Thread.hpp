@@ -23,17 +23,15 @@ namespace utils
             ::std::shared_ptr< type >  m_context;
             bool                       m_ok;
             bool                       m_started;
-            void                      *m_status;
             void                      *( *m_function ) ( void * );
 
         public:
             Thread( void *( *a_function ) ( void * ) )
             {
-                m_context  = ::std::make_shared< type >();
-                m_status   = NULL;
-                m_function = a_function;
-                m_started  = false;
-                m_ok = ( m_function != NULL );
+                m_context    = ::std::make_shared< type >();
+                m_function   = a_function;
+                m_started    = false;
+                m_ok = ( m_function != nullptr );
                 m_ok = m_ok && m_context;
                 m_ok = m_ok && ( 0 == pthread_attr_init( &m_attributes ) );
                 m_ok = m_ok && ( 0 == pthread_attr_setdetachstate( &m_attributes, PTHREAD_CREATE_JOINABLE ) );
@@ -41,8 +39,12 @@ namespace utils
 
             ~Thread()
             {
+                if( IsRunning() )
+                {
+                    Kill();
+                }
                 Join();
-                m_ok = m_ok && ( 0 == pthread_attr_destroy( &m_attributes ) );
+                pthread_attr_destroy( &m_attributes );
             }
 
             ::std::shared_ptr< type > &GetContext()
@@ -50,13 +52,9 @@ namespace utils
                 return m_context;
             }
 
-            void *GetStatus()
-            {
-                return m_status;
-            }
-
             bool IsOk()
             {
+                utils::Lock lock( this );
                 return m_ok;
             }
 
@@ -73,7 +71,7 @@ namespace utils
                 utils::Lock lock( this );
                 if( m_started )
                 {
-                    m_ok = m_ok && ( 0 == pthread_join( m_thread, &m_status ) );
+                    m_ok = m_ok && ( 0 == pthread_join( m_thread, nullptr ) );
                     m_started = false;
                 }
                 return m_ok;
@@ -81,6 +79,7 @@ namespace utils
 
             bool IsRunning()
             {
+                utils::Lock lock( this );
                 return ( 0 == pthread_kill( m_thread, 0 ) );
             }
 

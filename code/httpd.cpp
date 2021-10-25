@@ -16,7 +16,7 @@
 #include <unistd.h>
 #include <stdio.h>
 
-#define NUMTHREADS 128
+#define NUMTHREADS 16
 #define DEFMIME    "none" // Make sure this is defined in the ini file
 
 using namespace utils;
@@ -125,6 +125,8 @@ int main( int argc, char *argv[] )
                     }
                     if( !( clients[ c ] ) )
                     {
+                        // Set to true here because it doesn't make sense to retry if the following fails
+                        found = true;
                         clients[ c ] = make_shared< Thread< ThreadCTX > >( ProcessClient );
                         if( clients[ c ] && clients[ c ]->GetContext() )
                         {
@@ -138,26 +140,30 @@ int main( int argc, char *argv[] )
                                 clients[ c ]->GetContext()->socket->Valid() )
                             {
                                 clients[ c ]->Start();
-                                found = true;
                             }
                             else
                             {
-                                clients[ c ] = NULL;
+                                clients[ c ].reset();
                             }
                         }
                     }
                 }
                 if( !found )
                 {
-                    usleep( 12500 );
+                    // Wait for 1/10th of a second for a thread to finish
+                    usleep( 100000 );
                 }
             }
             printf( " [+] Client thread started (%s:%u)\n", address.c_str(), port );
         }
         else
         {
-            usleep( 25000 );
+            // Wait for 10ms for a client connection
+            usleep( 10000 );
         }
+        // Iterate through the threads to free up any that have finished.
+        // Calling reset() will destruct the object and call ~Thread() which
+        // will call pthread_kill() and pthread_join().
         for( uint32_t c = 0; c < NUMTHREADS; ++c )
         {
             if( clients[ c ] && !( clients[ c ]->IsRunning() ) )
@@ -167,7 +173,7 @@ int main( int argc, char *argv[] )
         }
     }
 
-    pthread_exit( NULL );
+    pthread_exit( nullptr );
 }
 
 void *ProcessClient( void *a_client )
@@ -176,15 +182,15 @@ void *ProcessClient( void *a_client )
     shared_ptr< HttpRequest > httpRequest = make_shared< HttpRequest >();
     shared_ptr< utils::Lock > lock        = make_shared< Lock >( context );
 
-    if( ( NULL == context          ) ||
+    if( ( nullptr == context       ) ||
        !( context->settings        ) ||
        !( context->logger          ) ||
        !( context->socket          ) ||
        !( context->socket->Valid() ) ||
-        ( NULL == httpRequest      ) )
+        ( nullptr == httpRequest   ) )
     {
         printf( " [!] Client processing failed\n" );
-        pthread_exit( NULL );
+        pthread_exit( nullptr );
     }
 
     {
@@ -336,12 +342,12 @@ void *ProcessClient( void *a_client )
     printf( " [+] Finished processing client (%s:%u)\n", context->address.c_str(), context->port );
     context->socket->Shutdown();
     printf( " [+] Thread exiting (id: %u)\n", context->id );
-    pthread_exit( NULL );
+    pthread_exit( nullptr );
 }
 
 void PrintHttpRequest( shared_ptr< HttpRequest > &a_request )
 {
-    if( a_request == NULL )
+    if( a_request == nullptr )
     {
         return;
     }
