@@ -213,8 +213,12 @@ namespace utils
                             Tokens::TrimSpace( temp->Value() );
                             if( temp->Key() == "CONTENT-LENGTH" )
                             {
-                                m_length = ::std::stoi( temp->Value() );
-                                // Truncate data to 4k bytes
+                                m_length = 0;
+                                if( Tokens::IsNumber( temp->Value() ) )
+                                {
+                                    m_length = ::std::stoi( temp->Value() );
+                                }
+                                // Truncate data to MAXBUFFERLEN
                                 if( m_length > MAXBUFFERLEN )
                                 {
                                     m_length = MAXBUFFERLEN;
@@ -229,7 +233,8 @@ namespace utils
                                     m_start = -1;
                                     m_end = -1;
                                     int negative = 0;
-                                    while( Tokens::GetToken( *range, token ) != TokenTypes::NotFound )
+                                    TokenType type = TokenType::NotFound;
+                                    while( ( type = Tokens::GetToken( *range, token ) ) != TokenType::NotFound )
                                     {
                                         ::std::string token_upper( token );
                                         Tokens::MakeUpper( token_upper );
@@ -246,7 +251,7 @@ namespace utils
                                             ++negative;
                                             continue;
                                         }
-                                        if( -1 == m_start )
+                                        if( ( -1 == m_start ) && ( type == TokenType::Number ) )
                                         {
                                             m_start = ::std::stoi( token );
                                             if( negative )
@@ -256,7 +261,7 @@ namespace utils
                                             }
                                             continue;
                                         }
-                                        else if( -1 == m_end )
+                                        else if( ( -1 == m_end ) && ( type == TokenType::Number ) )
                                         {
                                             m_end = ::std::stoi( token );
                                             if( negative > 1 )
@@ -305,7 +310,7 @@ namespace utils
 
     int32_t HttpRequest::Respond( ::std::shared_ptr< Socket > &a_socket, ::std::string &a_fileName, ::std::string &a_type )
     {
-        utils::Lock    lock( this );
+        utils::Lock lock( this );
 
         if( !a_socket )
         {

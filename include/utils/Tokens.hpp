@@ -36,42 +36,57 @@ namespace utils
     class Tokens
     {
         public:
-            static bool IsNewLine( uint8_t a_c )
+            static bool IsNewLine( const uint8_t a_c )
             {
                 return ( a_c == static_cast< uint8_t >( '\n' ) );
             }
 
-            static bool IsReturn( uint8_t a_c )
+            static bool IsReturn( const uint8_t a_c )
             {
                 return ( a_c == static_cast< uint8_t >( '\r' ) );
             }
 
-            static bool IsSpace( uint8_t a_c )
+            static bool IsSpace( const uint8_t a_c )
             {
                 return ( a_c == static_cast< uint8_t >( ' ' ) || a_c == static_cast< uint8_t >( '\t' ) );
             }
 
-            static bool IsNumber( uint8_t a_c )
+            static bool IsNumber( const uint8_t a_c )
             {
                 return ( a_c >= static_cast< uint8_t >( '0' ) && a_c <= static_cast< uint8_t >( '9' ) );
             }
 
-            static bool IsLetter( uint8_t a_c )
+            static bool IsNumber( const ::std::string &a_string )
+            {
+                bool numeric = false;
+                for( size_t i = 0; i < a_string.length(); ++i )
+                {
+                    if( ( i == 0 ) && ( ( a_string[ i ] == '+' ) || ( a_string[ i ] == '-' ) ) )
+                    {
+                        continue;
+                    }
+                    numeric = IsNumber( a_string[ i ] );
+                    if( !numeric ) break;
+                }
+                return numeric;
+            }
+
+            static bool IsLetter( const uint8_t a_c )
             {
                 return ( ( a_c >= static_cast< uint8_t >( 'a' ) && a_c <= static_cast< uint8_t >( 'z' ) ) || ( a_c >= static_cast< uint8_t >( 'A' ) && a_c <= static_cast< uint8_t >( 'Z' ) ) );
             }
 
-            static bool IsSymbol( uint8_t a_c )
+            static bool IsSymbol( const uint8_t a_c )
             {
                 return ( ( a_c > static_cast< uint8_t >( ' ' ) ) && ( a_c <= static_cast< uint8_t >( '~' ) ) && !IsNumber( a_c ) && !IsLetter( a_c ) );
             }
 
-            static bool IsPrintable( uint8_t a_c )
+            static bool IsPrintable( const uint8_t a_c )
             {
                 return ( ( a_c >= static_cast< uint8_t >( ' ' ) ) && ( a_c <= static_cast< uint8_t >( '~' ) ) );
             }
 
-            static bool IsNotPrintable( uint8_t a_c )
+            static bool IsNotPrintable( const uint8_t a_c )
             {
                 return ( ( a_c < static_cast< uint8_t >( ' ' ) ) || ( a_c > static_cast< uint8_t >( '~' ) ) );
             }
