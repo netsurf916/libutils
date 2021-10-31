@@ -105,7 +105,7 @@ namespace utils
     bool HttpRequest::Read( ::std::shared_ptr< Socket > &a_socket )
     {
         utils::Lock   lock( this );
-        uint32_t      timeout = 100;
+        uint32_t      timeout = 10;
         uint32_t      count = 0;
         ::std::string token;
 
@@ -134,8 +134,7 @@ namespace utils
             // Read a line of data from the client
             if( !a_socket->ReadLine( recvb ) )
             {
-                // Wait a bit before trying again
-                usleep( 10000 );
+                usleep( 1000 );
                 --timeout;
                 continue;
             }
@@ -145,13 +144,13 @@ namespace utils
                 if( m_length > 0 )
                 {
                     recvb->Clear();
-                    timeout = 100;
-                    while( ( timeout > 0 ) && a_socket->Valid() )
+                    timeout = 10;
+                    while( ( timeout > 0 ) && a_socket->IsReadable() )
                     {
                         if( !a_socket->Read( recvb ) )
                         {
+                            // Calling IsReadable() incurs a timeout
                             --timeout;
-                            usleep( 10000 );
                             continue;
                         }
                         uint8_t data = 0;

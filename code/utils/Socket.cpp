@@ -451,7 +451,8 @@ namespace utils
             pfd.events = ( POLLIN | POLLPRI | POLLRDBAND );
             if( poll( &pfd, 1, RWTIMEOUTMS ) < 0 )
             {
-                return false;
+                // Shutdown() sets m_valid to false
+                Shutdown();
             }
         }
         return m_valid;
@@ -742,7 +743,8 @@ namespace utils
             pfd.events = ( POLLOUT | POLLWRNORM | POLLWRBAND );
             if( poll( &pfd, 1, RWTIMEOUTMS ) < 0 )
             {
-                return false;
+                // Shutdown() sets m_valid to false
+                Shutdown();
             }
         }
         return m_valid;
