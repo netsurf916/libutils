@@ -45,17 +45,25 @@ namespace utils
         }
         else
         {
-            // Clear any leading whitespace
-            while( ok && a_input.Peek( c ) && IsSpace( c ) )
+            // Cycle until all the leading "junk" is gone
+            size_t hits;
+            do
             {
-                ok = a_input.Read( c );
-            }
+                hits = 0;
+                // Clear any leading whitespace
+                while( ok && a_input.Peek( c ) && IsSpace( c ) )
+                {
+                    ok = a_input.Read( c );
+                    ++hits;
+                }
 
-            // Clear any non-printable characters
-            while( ok && a_input.Peek( c ) && IsNotPrintable( c ) )
-            {
-                ok = a_input.Read( c );
-            }
+                // Clear any non-printable characters
+                while( ok && a_input.Peek( c ) && IsNotPrintable( c ) )
+                {
+                    ok = a_input.Read( c );
+                    ++hits;
+                }
+            } while( ok && ( hits > 0 ) );
 
             // Get a number
             if( ok && a_input.Peek( c ) && IsNumber( c ) )

@@ -140,7 +140,7 @@ namespace utils
         while( a_socket->Valid() && ( timeout > 0 ) )
         {
             // Read a line of data from the client
-            if( !a_socket->ReadLine( recvb ) )
+            if( TokenType::Line != Tokens::GetLine( *a_socket, *recvb ) )
             {
                 usleep( 1000 );
                 --timeout;
