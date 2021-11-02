@@ -229,9 +229,11 @@ namespace utils
                                     }
                                     catch( const ::std::exception &e )
                                     {
-                                        UNUSED( e );
                                         m_lasterror.clear();
                                         m_lasterror = temp->Value();
+                                        m_lasterror += " (";
+                                        m_lasterror += e.what();
+                                        m_lasterror += ")";
                                         m_length = 0;
                                     }
                                 }
@@ -281,9 +283,11 @@ namespace utils
                                             }
                                             catch( const ::std::exception &e )
                                             {
-                                                UNUSED( e );
                                                 m_lasterror.clear();
                                                 m_lasterror = temp->Value();
+                                                m_lasterror += " (";
+                                                m_lasterror += e.what();
+                                                m_lasterror += ")";
                                                 m_start = -1;
                                                 break;
                                             }
@@ -302,9 +306,11 @@ namespace utils
                                             }
                                             catch( const ::std::exception &e )
                                             {
-                                                UNUSED( e );
                                                 m_lasterror.clear();
                                                 m_lasterror = temp->Value();
+                                                m_lasterror += " (";
+                                                m_lasterror += e.what();
+                                                m_lasterror += ")";
                                                 m_start = -1;
                                                 m_end   = -1;
                                                 break;
