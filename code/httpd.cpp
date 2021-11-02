@@ -218,8 +218,8 @@ void *ProcessClient( void *a_client )
         string defaultDoc;
         int response = 0;
         printf( " [*] Remote: %s:%u\n", context->address.c_str(), context->port );
-        PrintHttpRequest( httpRequest );
-        httpRequest->Log( *( context->logger ) );
+        httpRequest->Log( *( context->logger ) ); // Write the log first so that LastError() isn't reset
+        PrintHttpRequest( httpRequest );          // Reads LastError() which resets the internal string
 
         if( ( context->settings->ReadValue( "path", httpRequest->Host().c_str(), hostHome ) ||
               context->settings->ReadValue( "path", "default", hostHome ) ) &&
@@ -357,5 +357,10 @@ void PrintHttpRequest( shared_ptr< HttpRequest > &a_request )
     {
         printf( " [+] %s: %s\n", start->Key().c_str(), start->Value().c_str() );
         start = start->Next();
+    }
+    ::std::string lasterror = a_request->LastError();
+    if( lasterror.length() > 0 )
+    {
+        printf( " [!] Last error: %s\n", lasterror.c_str() );
     }
 }

@@ -25,6 +25,7 @@ namespace utils
             bool          m_timeout;
             ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > m_meta;
             ::std::string m_response;
+            ::std::string m_lasterror;
 
         public:
             HttpRequest();
@@ -40,6 +41,7 @@ namespace utils
             ::std::string &Response();
             ::std::string &RemoteAddress();
             uint32_t      &RemotePort();
+            ::std::string  LastError();
 
             bool    Read( ::std::shared_ptr< Socket > &a_socket );
             int32_t Respond( ::std::shared_ptr< Socket > &a_socket, ::std::string &a_fileName, ::std::string &a_type );

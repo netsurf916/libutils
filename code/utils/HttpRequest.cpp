@@ -41,6 +41,7 @@ namespace utils
         m_timeout = false;
         m_meta    = NULL;
         m_response.clear();
+        m_lasterror.clear();
     }
 
     ::std::string &HttpRequest::Uri()
@@ -100,6 +101,13 @@ namespace utils
     {
         utils::Lock lock( this );
         return m_port;
+    }
+
+    ::std::string HttpRequest::LastError()
+    {
+        ::std::string result = m_lasterror;
+        m_lasterror.clear();
+        return result;
     }
 
     bool HttpRequest::Read( ::std::shared_ptr< Socket > &a_socket )
@@ -215,7 +223,17 @@ namespace utils
                                 m_length = 0;
                                 if( Tokens::IsNumber( temp->Value() ) )
                                 {
-                                    m_length = ::std::stoll( temp->Value() );
+                                    try
+                                    {
+                                        m_length = ::std::stoll( temp->Value() );
+                                    }
+                                    catch( const ::std::exception &e )
+                                    {
+                                        m_lasterror.clear();
+                                        m_lasterror = temp->Value();
+                                        UNUSED( e );
+                                        m_length = 0;
+                                    }
                                 }
                                 // Truncate data to MAXBUFFERLEN
                                 if( m_length > MAXBUFFERLEN )
@@ -252,21 +270,42 @@ namespace utils
                                         }
                                         if( ( -1 == m_start ) && ( type == TokenType::Number ) )
                                         {
-                                            m_start = ::std::stoll( token );
-                                            if( negative )
+                                            try
                                             {
-                                                m_start *= -1;
-                                                negative = 0;
+                                                m_start = ::std::stoll( token );
+                                                if( negative )
+                                                {
+                                                    m_start *= -1;
+                                                    negative = 0;
+                                                }
+                                            }
+                                            catch( const ::std::exception &e )
+                                            {
+                                                m_lasterror.clear();
+                                                m_lasterror = temp->Value();
+                                                m_start = -1;
+                                                break;
                                             }
                                             continue;
                                         }
                                         else if( ( -1 == m_end ) && ( type == TokenType::Number ) )
                                         {
-                                            m_end = ::std::stoll( token );
-                                            if( negative > 1 )
+                                            try
                                             {
-                                                m_end *= -1;
-                                                negative = 0;
+                                                m_end = ::std::stoll( token );
+                                                if( negative > 1 )
+                                                {
+                                                    m_end *= -1;
+                                                    negative = 0;
+                                                }
+                                            }
+                                            catch( const ::std::exception &e )
+                                            {
+                                                m_lasterror.clear();
+                                                m_lasterror = temp->Value();
+                                                m_start = -1;
+                                                m_end   = -1;
+                                                break;
                                             }
                                             continue;
                                         }
@@ -537,13 +576,13 @@ namespace utils
     {
         utils::Lock lock( this );
         utils::Lock valueLock( &a_logger );
-        char buffer[ 32 ];
+        char port[ 32 ];
         ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > start = m_meta;
 
-        snprintf( buffer, sizeof( buffer ), "%u", m_port );
+        snprintf( port, sizeof( port ), "%u", m_port );
         a_logger.Log( m_addr, true, false );
         a_logger.Log( ":", false, false );
-        a_logger.Log( buffer, false, false );
+        a_logger.Log( port, false, false );
         a_logger.Log( " - ", false, false );
         a_logger.Log( m_method, false, false );
         a_logger.Log( " ", false, false );
@@ -555,7 +594,7 @@ namespace utils
         {
             a_logger.Log( m_addr, true, false );
             a_logger.Log( ":", false, false );
-            a_logger.Log( buffer, false, false );
+            a_logger.Log( port, false, false );
             a_logger.Log( " - ", false, false );
             a_logger.Log( start->Key(), false, false );
             a_logger.Log( " = ", false, false );
@@ -589,7 +628,7 @@ namespace utils
                     }
                     a_logger.Log( m_addr, true, false );
                     a_logger.Log( ":", false, false );
-                    a_logger.Log( buffer, false, false );
+                    a_logger.Log( port, false, false );
                     a_logger.Log( " - [ ", false, false );
                     a_logger.Log( hex, false, false );
                     for( uint8_t j = hex.length(); j < max_width; ++j )
@@ -602,6 +641,16 @@ namespace utils
                     printable.clear();
                 }
             }
+        }
+
+        if( m_lasterror.length() > 0 )
+        {
+            a_logger.Log( m_addr, true, false );
+            a_logger.Log( ":", false, false );
+            a_logger.Log( port, false, false );
+            a_logger.Log( " - ", false, false );
+            a_logger.Log( "Last error = ", false, false );
+            a_logger.Log( m_lasterror.c_str(), false, true );
         }
     }
 
