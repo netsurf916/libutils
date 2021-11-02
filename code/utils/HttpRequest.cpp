@@ -229,9 +229,9 @@ namespace utils
                                     }
                                     catch( const ::std::exception &e )
                                     {
+                                        UNUSED( e );
                                         m_lasterror.clear();
                                         m_lasterror = temp->Value();
-                                        UNUSED( e );
                                         m_length = 0;
                                     }
                                 }
@@ -281,6 +281,7 @@ namespace utils
                                             }
                                             catch( const ::std::exception &e )
                                             {
+                                                UNUSED( e );
                                                 m_lasterror.clear();
                                                 m_lasterror = temp->Value();
                                                 m_start = -1;
@@ -301,6 +302,7 @@ namespace utils
                                             }
                                             catch( const ::std::exception &e )
                                             {
+                                                UNUSED( e );
                                                 m_lasterror.clear();
                                                 m_lasterror = temp->Value();
                                                 m_start = -1;
