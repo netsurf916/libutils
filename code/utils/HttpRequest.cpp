@@ -215,7 +215,7 @@ namespace utils
                                 m_length = 0;
                                 if( Tokens::IsNumber( temp->Value() ) )
                                 {
-                                    m_length = ::std::stoi( temp->Value() );
+                                    m_length = ::std::stoll( temp->Value() );
                                 }
                                 // Truncate data to MAXBUFFERLEN
                                 if( m_length > MAXBUFFERLEN )
@@ -252,7 +252,7 @@ namespace utils
                                         }
                                         if( ( -1 == m_start ) && ( type == TokenType::Number ) )
                                         {
-                                            m_start = ::std::stoi( token );
+                                            m_start = ::std::stoll( token );
                                             if( negative )
                                             {
                                                 m_start *= -1;
@@ -262,7 +262,7 @@ namespace utils
                                         }
                                         else if( ( -1 == m_end ) && ( type == TokenType::Number ) )
                                         {
-                                            m_end = ::std::stoi( token );
+                                            m_end = ::std::stoll( token );
                                             if( negative > 1 )
                                             {
                                                 m_end *= -1;
