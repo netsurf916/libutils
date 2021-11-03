@@ -94,7 +94,6 @@ namespace utils
             bool    Valid();
             ::std::shared_ptr< Socket > Accept( ::std::string &a_address, uint32_t &a_port );
             int32_t LastError();
-            bool    ReadLine( ::std::shared_ptr< Buffer > &a_buffer, uint32_t a_timeout = 1000 );
             void    Shutdown();
 
             // Read functions
