@@ -14,11 +14,6 @@ namespace utils
         uint8_t   c    = 0;
         TokenType type = TokenTypes::NotFound;
 
-        if( !a_input.IsReadable() )
-        {
-            return type;
-        }
-
         // Clear the output token
         a_token.clear();
 
@@ -127,10 +122,7 @@ namespace utils
         uint8_t   c    = 0;
         TokenType type = TokenTypes::NotFound;
 
-        if( !a_input.IsReadable() )
-        {
-            return type;
-        }
+        // Clear the output token
         a_token.clear();
 
         // Get a line
@@ -169,11 +161,6 @@ namespace utils
         bool      ok   = true;
         uint8_t   c    = 0;
         TokenType type = TokenTypes::NotFound;
-
-        if( !a_input.IsReadable() || !a_output.IsWritable() )
-        {
-            return type;
-        }
 
         // Get a line
         while( ok && a_input.Peek( c ) )

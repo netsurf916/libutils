@@ -140,12 +140,14 @@ namespace utils
         while( a_socket->Valid() && ( timeout > 0 ) )
         {
             // Read a line of data from the client
-            if( TokenType::Line != Tokens::GetLine( *a_socket, *recvb ) )
+            recvb->Clear(); // Reset the buffer each loop
+            if( Tokens::GetLine( *a_socket, *recvb ) != TokenTypes::Line )
             {
                 usleep( 1000 );
                 --timeout;
                 continue;
             }
+            // Empty line after request
             if( 0 == recvb->Length() )
             {
                 // Get more if there is data involved
