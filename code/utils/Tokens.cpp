@@ -1,5 +1,5 @@
 /**
-    Token.cpp : Token processing helper funcitons
+    Token.cpp : Token processing helper functions
     Copyright 2014-2021 Daniel Wilson
 */
 

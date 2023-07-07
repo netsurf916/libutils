@@ -54,9 +54,10 @@ namespace utils
         {
             fputs( "\n", output );
         }
+        int err = ferror( output );
         fflush( output );
         fclose( output );
-        return ( ferror( output ) == 0 );
+        return ( err == 0 );
     }
 
     bool LogFile::Log( const char *a_value, bool a_timestamp /*= true*/, bool a_newline /*= true*/ )

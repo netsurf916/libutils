@@ -6,6 +6,7 @@
 #include <utils/Lock.hpp>
 #include <pthread.h>
 #include <signal.h>
+#include <memory>
 
 #pragma once
 
