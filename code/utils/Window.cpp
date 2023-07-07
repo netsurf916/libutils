@@ -27,12 +27,18 @@ namespace utils
         endwin();
     }
 
+    void Window::GetMax( int &row, int &col )
+    {
+        ::utils::Lock lock( this );
+        getmaxyx( stdscr, row, col );
+    }
+
     void Window::Update()
     {
         ::utils::Lock lock( this );
         int mrow = 0,
             mcol = 0;
-        getmaxyx( stdscr, mrow, mcol );
+        GetMax( mrow, mcol );
 
         row %= mrow;
         col %= mcol;
@@ -45,19 +51,19 @@ namespace utils
         ::utils::Lock lock( this );
         move( row, col );
         addch( a );
-        col++;
+        ++col;
         Update();
     }
 
     void Window::PutRND( char a )
     {
         ::utils::Lock lock( this );
-        int maxr = 0,
-            maxc = 0;
-        getmaxyx( stdscr, maxr, maxc );
+        int mrow = 0,
+            mcol = 0;
+        GetMax( mrow, mcol );
 
-        row = rand() % maxr;
-        col = rand() % maxc;
+        row = rand() % mrow;
+        col = rand() % mcol;
 
         Put( a );
     }
@@ -66,13 +72,20 @@ namespace utils
     {
         ::utils::Lock lock( this );
         int slen = strlen( a ),
-            maxr = 0,
-            maxc = 0;
-        getmaxyx( stdscr, maxr, maxc );
-        if( ( slen > maxr ) || ( slen > maxc ) ) return;
+            mrow = 0,
+            mcol = 0;
+        GetMax( mrow, mcol );
 
-        row = rand() % maxr;
-        col = rand() % ( maxc - slen );
+        if( slen > mcol ) slen = mcol;
+        row = rand() % mrow;
+        if( slen == mcol )
+        {
+            col = 0;
+        }
+        else
+        {
+            col = rand() % ( mcol - slen );
+        }
 
         for( int i = 0; i < slen; ++i )
         {

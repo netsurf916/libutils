@@ -22,6 +22,7 @@ namespace utils
             ~Window();
 
             void Update();
+            void GetMax( int &row, int &col );
             void Put( char a );
             void PutRND( char a );
             void PutRND( const char *a );
