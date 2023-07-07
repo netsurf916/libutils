@@ -18,6 +18,21 @@ namespace utils
     {
         initscr();
         noecho();
+        curs_set( 0 );
+
+        if( has_colors() )
+        {
+            start_color();
+            init_pair( ColorPair::BlackOnWhite,   COLOR_BLACK,   COLOR_WHITE );
+            init_pair( ColorPair::RedOnBlack,     COLOR_RED,     COLOR_BLACK );
+            init_pair( ColorPair::GreenOnBlack,   COLOR_GREEN,   COLOR_BLACK );
+            init_pair( ColorPair::YellowOnBlack,  COLOR_YELLOW,  COLOR_BLACK );
+            init_pair( ColorPair::BlueOnBlack,    COLOR_BLUE,    COLOR_BLACK );
+            init_pair( ColorPair::MagentaOnBlack, COLOR_MAGENTA, COLOR_BLACK );
+            init_pair( ColorPair::CyanOnBlack,    COLOR_CYAN,    COLOR_BLACK );
+            init_pair( ColorPair::WhiteOnBlack,   COLOR_WHITE,   COLOR_BLACK );
+        }
+
         srand( time( NULL ) );
     }
 
@@ -27,10 +42,10 @@ namespace utils
         endwin();
     }
 
-    void Window::GetMax( int &row, int &col )
+    void Window::GetMax( int &a_row, int &a_col )
     {
         ::utils::Lock lock( this );
-        getmaxyx( stdscr, row, col );
+        getmaxyx( stdscr, a_row, a_col );
     }
 
     void Window::Update()
@@ -46,16 +61,23 @@ namespace utils
         refresh();
     }
 
-    void Window::Put( char a )
+    void Window::Put( char a_ch, int a_color )
     {
         ::utils::Lock lock( this );
-        move( row, col );
-        addch( a );
+        if( has_colors() )
+        {
+            attron( COLOR_PAIR( a_color ) );
+        }
+        mvaddch( row, col, a_ch );
+        if( has_colors() )
+        {
+            attroff( COLOR_PAIR( a_color ) );
+        }
         ++col;
         Update();
     }
 
-    void Window::PutRND( char a )
+    void Window::PutRND( char a_ch, int a_color )
     {
         ::utils::Lock lock( this );
         int mrow = 0,
@@ -65,13 +87,13 @@ namespace utils
         row = rand() % mrow;
         col = rand() % mcol;
 
-        Put( a );
+        Put( a_ch, a_color );
     }
 
-    void Window::PutRND( const char *a )
+    void Window::PutRND( const char *a_str, int a_color )
     {
         ::utils::Lock lock( this );
-        int slen = strlen( a ),
+        int slen = strlen( a_str ),
             mrow = 0,
             mcol = 0;
         GetMax( mrow, mcol );
@@ -89,7 +111,7 @@ namespace utils
 
         for( int i = 0; i < slen; ++i )
         {
-            Put( a[ i ] );
+            Put( a_str[ i ], a_color );
         }
     }
 }

@@ -12,6 +12,23 @@
 
 namespace utils
 {
+    namespace ColorPairs
+    {
+        enum Pairs : uint8_t
+        {
+            BlackOnWhite   =  1,
+            RedOnBlack     =  2,
+            GreenOnBlack   =  3,
+            YellowOnBlack  =  4,
+            BlueOnBlack    =  5,
+            MagentaOnBlack =  6,
+            CyanOnBlack    =  7,
+            WhiteOnBlack   =  8,
+            Count          =  8,
+        };
+    }
+    typedef ColorPairs::Pairs ColorPair;
+
     class Window : public Lockable
     {
         private:
@@ -22,10 +39,10 @@ namespace utils
             ~Window();
 
             void Update();
-            void GetMax( int &row, int &col );
-            void Put( char a );
-            void PutRND( char a );
-            void PutRND( const char *a );
+            void GetMax( int &a_row, int &a_col );
+            void Put( char a_ch, int a_color = ColorPair::WhiteOnBlack );
+            void PutRND( char a_ch, int a_color = ColorPair::WhiteOnBlack );
+            void PutRND( const char *a_str, int a_color = ColorPair::WhiteOnBlack );
     };
 }
 
