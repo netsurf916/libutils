@@ -24,7 +24,13 @@ namespace utils
             MagentaOnBlack =  6,
             CyanOnBlack    =  7,
             WhiteOnBlack   =  8,
-            Count          =  8,
+            BlackOnRed     =  9,
+            BlackOnGreen   = 10,
+            BlackOnYellow  = 11,
+            BlackOnBlue    = 12,
+            BlackOnMagenta = 13,
+            BlackOnCyan    = 14,
+            Count          = 14,
         };
     }
     typedef ColorPairs::Pairs ColorPair;

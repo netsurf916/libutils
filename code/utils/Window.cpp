@@ -23,14 +23,20 @@ namespace utils
         if( has_colors() )
         {
             start_color();
-            init_pair( ColorPair::BlackOnWhite,   COLOR_BLACK,   COLOR_WHITE );
-            init_pair( ColorPair::RedOnBlack,     COLOR_RED,     COLOR_BLACK );
-            init_pair( ColorPair::GreenOnBlack,   COLOR_GREEN,   COLOR_BLACK );
-            init_pair( ColorPair::YellowOnBlack,  COLOR_YELLOW,  COLOR_BLACK );
-            init_pair( ColorPair::BlueOnBlack,    COLOR_BLUE,    COLOR_BLACK );
-            init_pair( ColorPair::MagentaOnBlack, COLOR_MAGENTA, COLOR_BLACK );
-            init_pair( ColorPair::CyanOnBlack,    COLOR_CYAN,    COLOR_BLACK );
-            init_pair( ColorPair::WhiteOnBlack,   COLOR_WHITE,   COLOR_BLACK );
+            init_pair( ColorPair::BlackOnWhite,   COLOR_BLACK,   COLOR_WHITE   );
+            init_pair( ColorPair::RedOnBlack,     COLOR_RED,     COLOR_BLACK   );
+            init_pair( ColorPair::GreenOnBlack,   COLOR_GREEN,   COLOR_BLACK   );
+            init_pair( ColorPair::YellowOnBlack,  COLOR_YELLOW,  COLOR_BLACK   );
+            init_pair( ColorPair::BlueOnBlack,    COLOR_BLUE,    COLOR_BLACK   );
+            init_pair( ColorPair::MagentaOnBlack, COLOR_MAGENTA, COLOR_BLACK   );
+            init_pair( ColorPair::CyanOnBlack,    COLOR_CYAN,    COLOR_BLACK   );
+            init_pair( ColorPair::WhiteOnBlack,   COLOR_WHITE,   COLOR_BLACK   );
+            init_pair( ColorPair::BlackOnRed,     COLOR_BLACK,   COLOR_RED     );
+            init_pair( ColorPair::BlackOnGreen,   COLOR_BLACK,   COLOR_GREEN   );
+            init_pair( ColorPair::BlackOnYellow,  COLOR_BLACK,   COLOR_YELLOW  );
+            init_pair( ColorPair::BlackOnBlue,    COLOR_BLACK,   COLOR_BLUE    );
+            init_pair( ColorPair::BlackOnMagenta, COLOR_BLACK,   COLOR_MAGENTA );
+            init_pair( ColorPair::BlackOnCyan,    COLOR_BLACK,   COLOR_CYAN    );
         }
 
         srand( time( NULL ) );
