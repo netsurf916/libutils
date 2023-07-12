@@ -47,10 +47,9 @@ int main( int argc, char *argv[] )
         ++color;
         if( argc > 1)
         {
-            for( int i = 1; i < argc; ++i )
-            {
-                w.PutRND( argv[ i ], color );
-            }
+            int i = rand() % ( argc - 1 );
+            ++i;
+            w.PutRND( argv[ i ], color );
         }
         else
         {
