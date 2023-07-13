@@ -54,20 +54,60 @@ namespace utils
         getmaxyx( stdscr, a_row, a_col );
     }
 
-    void Window::Update()
+    void Window::Update( int a_dir )
     {
         ::utils::Lock lock( this );
         int mrow = 0,
             mcol = 0;
         GetMax( mrow, mcol );
 
+        switch( a_dir )
+        {
+            case TextDirection::Right:
+                ++col;
+                break;
+            case TextDirection::Left:
+                --col;
+                break;
+            case TextDirection::Up:
+                --row;
+                break;
+            case TextDirection::Down:
+                ++row;
+                break;
+            case TextDirection::DownRight:
+                ++col;
+                ++row;
+                break;
+            case TextDirection::UpRight:
+                ++col;
+                --row;
+                break;
+            case TextDirection::DownLeft:
+                --col;
+                ++row;
+                break;
+            case TextDirection::UpLeft:
+                --col;
+                --row;
+                break;
+            default: // Default to "Right"
+                ++col;
+                break;
+        }
+
+        // In case something went negative
+        row += mrow;
+        col += mcol;
+
+        // Normalize the values to within the positive limits
         row %= mrow;
         col %= mcol;
 
         refresh();
     }
 
-    void Window::Put( char a_ch, int a_color )
+    void Window::Put( char a_ch, int a_color, int a_dir )
     {
         ::utils::Lock lock( this );
         if( has_colors() )
@@ -79,11 +119,10 @@ namespace utils
         {
             attroff( COLOR_PAIR( a_color ) );
         }
-        ++col;
-        Update();
+        Update( a_dir );
     }
 
-    void Window::PutRND( char a_ch, int a_color )
+    void Window::PutRND( char a_ch, int a_color, int a_dir )
     {
         ::utils::Lock lock( this );
         int mrow = 0,
@@ -93,31 +132,21 @@ namespace utils
         row = rand() % mrow;
         col = rand() % mcol;
 
-        Put( a_ch, a_color );
+        Put( a_ch, a_color, a_dir );
     }
 
-    void Window::PutRND( const char *a_str, int a_color )
+    void Window::PutRND( const char *a_str, int a_color, int a_dir )
     {
         ::utils::Lock lock( this );
-        int slen = strlen( a_str ),
-            mrow = 0,
-            mcol = 0;
-        GetMax( mrow, mcol );
+        int slen = strlen( a_str );
 
-        if( slen > mcol ) slen = mcol;
-        row = rand() % mrow;
-        if( slen == mcol )
+        if( slen > 0 )
         {
-            col = 0;
-        }
-        else
-        {
-            col = rand() % ( mcol - slen );
-        }
-
-        for( int i = 0; i < slen; ++i )
-        {
-            Put( a_str[ i ], a_color );
+            PutRND( a_str[ 0 ], a_color, a_dir );
+            for( int i = 1; i < slen; ++i )
+            {
+                Put( a_str[ i ], a_color, a_dir );
+            }
         }
     }
 }

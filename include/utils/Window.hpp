@@ -14,6 +14,7 @@ namespace utils
 {
     namespace ColorPairs
     {
+        // The ncurses color pairs can't start with 0
         enum Pairs : uint8_t
         {
             BlackOnWhite   =  1,
@@ -35,20 +36,37 @@ namespace utils
     }
     typedef ColorPairs::Pairs ColorPair;
 
+    namespace TextDirections
+    {
+        enum Directions : uint8_t
+        {
+            Right     = 0,
+            Left      = 1,
+            Up        = 2,
+            Down      = 3,
+            DownRight = 4,
+            UpRight   = 5,
+            DownLeft  = 6,
+            UpLeft    = 7,
+            Count     = 8,
+        };
+    }
+    typedef TextDirections::Directions TextDirection;
+
     class Window : public Lockable
     {
         private:
             int row, col;
+            void Update( int a_dir = TextDirection::Right );
 
         public:
             Window();
             ~Window();
 
-            void Update();
             void GetMax( int &a_row, int &a_col );
-            void Put( char a_ch, int a_color = ColorPair::WhiteOnBlack );
-            void PutRND( char a_ch, int a_color = ColorPair::WhiteOnBlack );
-            void PutRND( const char *a_str, int a_color = ColorPair::WhiteOnBlack );
+            void Put( char a_ch, int a_color = ColorPair::WhiteOnBlack, int a_dir = TextDirection::Right );
+            void PutRND( char a_ch, int a_color = ColorPair::WhiteOnBlack, int a_dir = TextDirection::Right );
+            void PutRND( const char *a_str, int a_color = ColorPair::WhiteOnBlack, int a_dir = TextDirection::Right );
     };
 }
 
