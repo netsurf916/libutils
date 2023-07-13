@@ -46,14 +46,18 @@ static const char charset[] = "abcdefghijklmnopqrstuvwxyz";
 
 int main( int argc, char *argv[] )
 {
+    // Create the window
     Window w;
 
+    // Background thread for handling keyboard input
     ::std::shared_ptr< Thread< ThreadCTX > > input_thread = ::std::make_shared< Thread< ThreadCTX > >( input );
     input_thread->GetContext()->run = true;
     input_thread->Start();
 
+    // List of words to use in the word search
     Staque< ::std::string > word_list;
 
+    // Read input file, if provided
     if( argc >= 2 )
     {
         // Read up to 200 words from the provided file
@@ -62,19 +66,29 @@ int main( int argc, char *argv[] )
         ::std::string s;
         while( TokenType::Line == Tokens::GetLine( input_file, s ) && ( word_list.Length() < 200 ) )
         {
+            // Only allow words with no symbols
+            for( size_t i = 0; i < s.length(); ++i )
+            {
+                if( !( Tokens::IsLetter( s[ i ] ) ) )
+                {
+                    s.clear();
+                    break;
+                }
+            }
+
             // Skip empty lines
             if( s.length() > 0 )
             {
+                Tokens::MakeUpper( s );
                 word_list.Enqueue( s );
                 s.clear();
             }
         }
     }
 
+    // Only create the word search if there are words provided
     if( word_list.Length() > 0 )
     {
-        // Set color
-        int color = ColorPair::RedOnBlack;
         do
         {
             // Handle the pause case
@@ -83,6 +97,11 @@ int main( int argc, char *argv[] )
                 usleep( 50000 ); // Wait 50ms
                 continue;
             }
+
+            // Choose a random color
+            // Colors start at 1 and go to ColorPair::Count
+            int color = rand() % ColorPair::Count;
+            ++color;
 
             // Choose a random direction
             // Directions start at 0 and go to TextDirection::Count - 1
@@ -96,8 +115,8 @@ int main( int argc, char *argv[] )
                 w.PutRND( s.c_str(), color, direction );
             }
 
-            // Delay 5ms to keep CPU usage sane
-            usleep( 5000 );
+            // Delay 10ms to keep CPU usage sane
+            usleep( 10000 );
         }
         while( input_thread->GetContext()->run );
     }

@@ -104,6 +104,7 @@ namespace utils
         row %= mrow;
         col %= mcol;
 
+        // Refresh all the screens
         refresh();
     }
 
