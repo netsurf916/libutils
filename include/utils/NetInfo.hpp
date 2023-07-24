@@ -11,6 +11,7 @@
 #include <utils/BitMask.hpp>
 #include <sys/types.h>
 #include <ifaddrs.h>
+#include <string>
 #include <memory>
 
 namespace utils

@@ -10,6 +10,7 @@
 
 #include <utils/Types.hpp>
 #include <utils/Lock.hpp>
+#include <string>
 
 namespace utils
 {

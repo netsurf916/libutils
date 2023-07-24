@@ -9,6 +9,7 @@
 #define _FILE_HPP_
 
 #include <utils/Utils.hpp>
+#include <string>
 #include <stdio.h>
 
 namespace utils

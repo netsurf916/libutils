@@ -10,6 +10,7 @@
 #include <utils/Writable.hpp>
 #include <memory>
 #include <netinet/in.h>
+#include <string>
 #ifdef USE_SSL
 #include <openssl/ssl.h>
 #include <openssl/err.h>
