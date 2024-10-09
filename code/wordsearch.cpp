@@ -17,7 +17,6 @@ class ThreadCTX : public Lockable
     public:
         bool run;
         bool pause;
-        //Staque< char > buffer;
 };
 
 void *input( void *a_ctx )
@@ -27,7 +26,6 @@ void *input( void *a_ctx )
 
     while( context->run && ( c = getch() ) )
     {
-        //context->buffer.Enqueue( c );
         switch( c )
         {
             case 'p':
@@ -42,8 +40,6 @@ void *input( void *a_ctx )
     }
     pthread_exit( nullptr );
 }
-
-static const char charset[] = "abcdefghijklmnopqrstuvwxyz";
 
 int main( int argc, char *argv[] )
 {
