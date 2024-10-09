@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string>
+#include <unistd.h>
 
 #include <utils/Window.hpp>
 #include <utils/Thread.hpp>
