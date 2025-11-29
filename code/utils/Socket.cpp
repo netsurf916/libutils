@@ -424,11 +424,7 @@ namespace utils
             {
                 total += result;
             }
-            if( 0 == result )
-            {
-                usleep( 500 );
-            }
-            if( result < 0 )
+            if( result <= 0 )
             {
                 Shutdown();
             }
