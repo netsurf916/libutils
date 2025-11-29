@@ -40,10 +40,7 @@ namespace utils
 
             ~Thread()
             {
-                if( IsRunning() )
-                {
-                    Kill();
-                }
+                utils::Lock lock( this );
                 Join();
                 pthread_attr_destroy( &m_attributes );
             }

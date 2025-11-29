@@ -16,7 +16,7 @@
 #include <unistd.h>
 #include <stdio.h>
 
-#define NUMTHREADS 16
+#define NUMTHREADS 4
 #define DEFMIME    "none" // Make sure this is defined in the ini file
 
 using namespace utils;
@@ -30,6 +30,7 @@ struct ThreadCTX : public Lockable
     string                address;
     uint32_t              port;
     uint32_t              id;
+    bool                  running;
 };
 
 void *ProcessClient( void *a_client );
@@ -59,32 +60,14 @@ int main( int argc, char *argv[] )
         return 0;
     }
 
-    #ifdef USE_SSL
-    string keyfile;
-    string certfile;
-    bool useTls = settings->ReadValue( "settings", "keyfile",  keyfile );
-    useTls = useTls && settings->ReadValue( "settings", "certfile", certfile );
-    useTls = useTls && ( keyfile.length() > 0 ) && ( certfile.length() > 0 );
-    #endif // USE_SSL
-
     // Try for root if the requested port is < 1024
     uid_t runningAs = getuid();
     bool  gotRoot = ( ( 0 != runningAs ) && ( stoi( port ) < 1024 ) && ( 0 == setuid( 0 ) ) );
 
     // Start the listener
     uint32_t flags = SocketFlags::TcpServer;
-    #ifdef USE_SSL
-    if( useTls )
-    {
-        flags = SocketFlags::TlsServer;
-    }
-    #endif // USE_SSL
     shared_ptr< Socket > listener =
-        #ifdef USE_SSL
-        make_shared< Socket >( address.c_str(), stoi( port ), flags, keyfile.c_str(), certfile.c_str() );
-        #else // !USE_SSL
         make_shared< Socket >( address.c_str(), stoi( port ), flags );
-        #endif // USE_SSL
     if( !listener || !listener->Valid() )
     {
         printf( " [!] Error listening on: %s:%s\n", address.c_str(), port.c_str() );
@@ -104,71 +87,59 @@ int main( int argc, char *argv[] )
     logger->Log( ":", false, false );
     logger->Log( port, false, true );
 
+    // Track the available threads
+    uint16_t availableThreads = NUMTHREADS;
     shared_ptr< Thread< ThreadCTX > > clients[ NUMTHREADS ];
 
     while( listener->Valid() )
     {
         string   address;
         uint32_t port = 0;
-        shared_ptr< Socket > client = listener->Accept( address, port );
-        if( client )
+        shared_ptr< Socket > client = ( availableThreads > 0 )? listener->Accept( address, port ): nullptr;
+
+        if( client && listener->Valid() )
         {
-            bool found = false;
             printf( " [*] Client connected: %s:%u\n", address.c_str(), port );
-            while( !found && listener->Valid() )
+            for( uint32_t c = 0; ( c < NUMTHREADS ); ++c )
             {
-                for( uint32_t c = 0; !found && ( c < NUMTHREADS ); ++c )
+                if( !( clients[ c ] ) )
                 {
-                    if( clients[ c ] && !( clients[ c ]->IsRunning() ) )
+                    clients[ c ] = make_shared< Thread< ThreadCTX > >( ProcessClient );
+                    if( clients[ c ] && clients[ c ]->GetContext() )
                     {
-                        clients[ c ].reset();
-                    }
-                    if( !( clients[ c ] ) )
-                    {
-                        // Set to true here because it doesn't make sense to retry if the following fails
-                        found = true;
-                        clients[ c ] = make_shared< Thread< ThreadCTX > >( ProcessClient );
-                        if( clients[ c ] && clients[ c ]->GetContext() )
+                        clients[ c ]->GetContext()->socket   = client;
+                        clients[ c ]->GetContext()->logger   = logger;
+                        clients[ c ]->GetContext()->settings = settings;
+                        clients[ c ]->GetContext()->address  = address;
+                        clients[ c ]->GetContext()->port     = port;
+                        clients[ c ]->GetContext()->id       = c;
+                        clients[ c ]->GetContext()->running  = true;
+                        if( clients[ c ]->GetContext()->socket &&
+                            clients[ c ]->GetContext()->socket->Valid() )
                         {
-                            clients[ c ]->GetContext()->socket   = client;
-                            clients[ c ]->GetContext()->logger   = logger;
-                            clients[ c ]->GetContext()->settings = settings;
-                            clients[ c ]->GetContext()->address  = address;
-                            clients[ c ]->GetContext()->port     = port;
-                            clients[ c ]->GetContext()->id       = c;
-                            if( clients[ c ]->GetContext()->socket &&
-                                clients[ c ]->GetContext()->socket->Valid() )
-                            {
-                                clients[ c ]->Start();
-                            }
-                            else
-                            {
-                                clients[ c ].reset();
-                            }
+                            clients[ c ]->Start();
+                            client = nullptr;
+                            --availableThreads;
+                        }
+                        else
+                        {
+                            clients[ c ].reset();
                         }
                     }
                 }
-                if( !found )
-                {
-                    // Wait for 1/10th of a second for a thread to finish
-                    usleep( 100000 );
-                }
             }
-            printf( " [+] Client thread started (%s:%u)\n", address.c_str(), port );
-        }
-        else
-        {
-            // Wait for 10ms for a client connection
-            usleep( 10000 );
-        }
+        } else { sleep(1); } // 1 second delay in case there are no free threads
+        printf( " [+] Client thread started (%s:%u)\n", address.c_str(), port );
+
         // Iterate through the threads to free up any that have finished.
         // Calling reset() will destruct the object and call ~Thread() which
         // will call pthread_kill() and pthread_join().
         for( uint32_t c = 0; c < NUMTHREADS; ++c )
         {
-            if( clients[ c ] && !( clients[ c ]->IsRunning() ) )
+            if( clients[ c ] && !( clients[ c ]->GetContext()->running ) )
             {
                 clients[ c ].reset();
+                ++availableThreads;
             }
         }
     }
@@ -202,9 +173,6 @@ void *ProcessClient( void *a_client )
     }
 
     printf( " [+] Processing client (id: %u)\n", context->id );
-    #ifdef USE_SSL
-    context->socket->Start_SSL();
-    #endif // USE_SSL
 
     if( context->socket->Valid() && httpRequest->Read( context->socket ) )
     {
@@ -219,7 +187,7 @@ void *ProcessClient( void *a_client )
         int response = 0;
         printf( " [*] Remote: %s:%u\n", context->address.c_str(), context->port );
         httpRequest->Log( *( context->logger ) ); // Write the log first so that LastError() isn't reset
-        PrintHttpRequest( httpRequest );          // Reads LastError() which resets the internal string
+//        PrintHttpRequest( httpRequest );          // Reads LastError() which resets the internal string
 
         if( ( context->settings->ReadValue( "path", httpRequest->Host().c_str(), hostHome ) ||
               context->settings->ReadValue( "path", "default", hostHome ) ) &&
@@ -342,6 +310,7 @@ void *ProcessClient( void *a_client )
     printf( " [+] Finished processing client (%s:%u)\n", context->address.c_str(), context->port );
     context->socket->Shutdown();
     printf( " [+] Thread exiting (id: %u)\n", context->id );
+    context->running = false;
     pthread_exit( nullptr );
 }
 

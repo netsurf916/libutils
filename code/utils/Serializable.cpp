@@ -4,6 +4,7 @@
 */
 
 #include <utils/Serializable.hpp>
+#include <netinet/in.h>
 
 namespace utils
 {

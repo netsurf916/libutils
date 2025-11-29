@@ -1,13 +1,13 @@
 CFLAGS      = -O2 -pedantic \
               -W -Wall -Wextra -Wunused -Werror \
-              -fstack-protector-all -DUSE_SSL
+              -fstack-protector-all -g
 
 CLIBFLAGS   = -fPIC
-CXXFLAGS    = -std=c++17
+CXXFLAGS    = -std=c++23
 
 INCLUDES    = -I./include/ -I/usr/local/include/
 
-LIBS        = -lutils -lpthread -lssl -lcrypto -lncurses
+LIBS        = -lutils -lpthread -lcrypto -lncurses
 LIBPATHS    = -L./ -L/usr/local/lib/
 
 SRCDIR      = code/utils/

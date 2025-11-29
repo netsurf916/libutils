@@ -25,38 +25,17 @@ namespace utils
     , m_valid   ( a_sockfd >= 0 )
     , m_error   ( 0 )
     , m_flags   ( a_flags )
-    #ifdef USE_SSL
-    , m_sslctx  ( nullptr )
-    , m_ssl     ( nullptr )
-    #endif // USE_SSL
     {
     }
 
-    #ifdef USE_SSL
-    Socket::Socket( const char *a_address, uint32_t a_port, uint32_t a_flags /*= 0*/, const char *a_keyfile /*= ""*/, const char *a_certfile /*= ""*/ )
-    #else // !USE_SSL
     Socket::Socket( const char *a_address, uint32_t a_port, uint32_t a_flags /*= 0*/ )
-    #endif
     : m_valid ( false )
     , m_error ( 0 )
     , m_flags ( a_flags )
-    #ifdef USE_SSL
-    , m_sslctx  ( nullptr )
-    , m_ssl     ( nullptr )
-    #endif // USE_SSL
     {
         char port[ 16 ]; // 32-bit input could be 10 digits + 1 for NULL terminator, so 11 minimum should be allocated
         snprintf( port, sizeof( port ), "%d", a_port );
-        #ifdef USE_SSL
-        if( m_flags.IsSet( SocketFlags::Secure ) )
-        {
-            SSL_load_error_strings();	
-            OpenSSL_add_ssl_algorithms();
-        }
-        m_sockfd = Initialize( a_address, port, a_keyfile, a_certfile );
-        #else // !USE_SSL
         m_sockfd = Initialize( a_address, port );
-        #endif
         if( m_sockfd < 0 )
         {
             m_valid = false;
@@ -69,11 +48,7 @@ namespace utils
         Shutdown();
     }
 
-    #ifdef USE_SSL
-    int32_t Socket::Initialize( const char *a_address, const char *a_service, const char *a_keyfile, const char *a_certfile )
-    #else // !USE_SSL
     int32_t Socket::Initialize( const char *a_address, const char *a_service )
-    #endif
     {
         int32_t sockfd = -1;
         if( a_address )
@@ -107,7 +82,7 @@ namespace utils
                                 }
                                 if( 0 == listen( sockfd, 100 ) )
                                 {
-                                    fcntl( sockfd, F_SETFL, O_NONBLOCK );
+                                    //fcntl( sockfd, F_SETFL, O_NONBLOCK );
                                     break;
                                 }
                                 m_error = errno;
@@ -157,55 +132,9 @@ namespace utils
             sigemptyset( &act.sa_mask );
             act.sa_flags = 0;
             sigaction( SIGPIPE, &act, nullptr );
-            // Configure TLS
-            #ifdef USE_SSL
-            if( m_flags.IsSet( SocketFlags::Secure ) )
-            {
-                m_sslctx = SSL_CTX_new( TLS_method() );
-                if( m_sslctx != nullptr )
-                {
-                    SSL_CTX_set_min_proto_version( m_sslctx, TLS1_2_VERSION );
-                    if( ( SSL_CTX_use_certificate_file( m_sslctx, a_certfile, SSL_FILETYPE_PEM ) <= 0 ) ||
-                        ( SSL_CTX_use_PrivateKey_file ( m_sslctx, a_keyfile,  SSL_FILETYPE_PEM ) <= 0 ) )
-                    {
-                        Shutdown();
-                    }
-                }
-                else
-                {
-                    Shutdown();
-                }
-            }
-            #endif // USE_SSL
         }
         return sockfd;
     }
-
-    #ifdef USE_SSL
-    void Socket::Start_SSL()
-    {
-        if( m_flags.IsSet( SocketFlags::Secure ) )
-        {
-            if( m_ssl != nullptr )
-            {
-                if( SSL_accept( m_ssl ) <= 0 )
-                {
-                    Shutdown();
-                }
-            }
-            else
-            {
-                // TODO: check the state of CTX and SSL, generate if needed
-                //       CTX must be generated for a client in case this is
-                //       a new client and not a connected session
-                //m_valid = ( SSL_connect( m_ssl ) > 0 );
-
-                // Kill the connection for now if this state occurs
-                Shutdown();
-            }
-        }
-    }
-    #endif // USE_SSL
 
     bool Socket::Valid()
     {
@@ -250,13 +179,6 @@ namespace utils
             if( client )
             {
                 client->m_flags.SetBit( SocketFlags::Server, false );
-                #ifdef USE_SSL
-                if( client->m_flags.IsSet( SocketFlags::Secure ) )
-                {
-                    client->m_ssl = SSL_new( m_sslctx );
-                    SSL_set_fd( client->m_ssl, client_fd );
-                }
-                #endif // USE_SSL
             }
             return client;
         }
@@ -274,90 +196,9 @@ namespace utils
         return m_error;
     }
 
-    #ifdef USE_SSL
-    bool Socket::ReadLine_SSL( ::std::shared_ptr< Buffer > &a_buffer, const uint32_t a_timeout /* = 1000 */ )
-    {
-        ::utils::Lock lock( this );
-        if( !a_buffer )
-        {
-            return false;
-        }
-        ::utils::Lock valueLock( a_buffer.get() );
-        uint8_t data = 0;
-        uint32_t timeout = a_timeout;
-        bool done = !Valid();
-        while( !done && ( timeout > 0 ) && ( a_buffer->Space() > 0 ) )
-        {
-            int32_t result = SSL_peek( m_ssl, &data, sizeof( data ) );
-            if( result > 0 )
-            {
-                timeout = a_timeout;
-                result = SSL_read( m_ssl, &data, sizeof( data ) );
-                if( result > 0 )
-                {
-                    switch( data )
-                    {
-                        case '\n': // Handle '\n' and "\n\r"
-                            result = SSL_peek( m_ssl, &data, sizeof( data ) );
-                            if( ( result > 0 ) && ( data == '\r' ) )
-                            {
-                                result = SSL_read( m_ssl, &data, sizeof( data ) );
-                            }
-                            done = true;
-                            break;
-                        case '\r': // Handle '\r' and "\r\n"
-                            result = SSL_peek( m_ssl, &data, sizeof( data ) );
-                            if( ( result > 0 ) && ( data == '\n' ) )
-                            {
-                                result = SSL_read( m_ssl, &data, sizeof( data ) );
-                            }
-                            done = true;
-                            break;
-                        default:
-                            a_buffer->Write( data );
-                            break;
-                    }
-                }
-            }
-            if( result <= 0 )
-            {
-                m_error = SSL_get_error( m_ssl, result );
-                if( ( m_error == SSL_ERROR_WANT_READ ) || ( m_error == SSL_ERROR_NONE ) )
-                {
-                    usleep( 100 );
-                    --timeout;
-                }
-                else
-                {
-                    done = true;
-                    Shutdown();
-                }
-            }
-        }
-        if( timeout == 0 )
-        {
-            m_error = ETIMEDOUT;
-        }
-        return done;
-    }
-    #endif // USE_SSL
-
     void Socket::Shutdown()
     {
         ::utils::Lock lock( this );
-        #ifdef USE_SSL
-        if( m_ssl != nullptr )
-        {
-            SSL_shutdown( m_ssl );
-            SSL_free( m_ssl );
-            m_ssl = nullptr;
-        }
-        if( m_sslctx != nullptr )
-        {
-            SSL_CTX_free( m_sslctx );
-            m_sslctx = nullptr;
-        }
-        #endif // USE_SSL
         if( m_sockfd >= 0 )
         {
             fsync( m_sockfd );
@@ -386,40 +227,8 @@ namespace utils
         return m_valid;
     }
 
-    #ifdef USE_SSL
-    bool Socket::Read_SSL( uint8_t &a_value, bool a_block /*= false*/ ) noexcept
-    {
-        ::utils::Lock lock( this );
-        bool ok = Valid() && m_flags.IsSet( SocketFlags::Secure );
-        if( ok )
-        {
-            int32_t result = SSL_peek( m_ssl, &a_value, sizeof( uint8_t ) );
-            if( ( result > 0 ) || a_block )
-            {
-                result = SSL_read( m_ssl, &a_value, sizeof( uint8_t ) );
-            }
-            if( result <= 0 )
-            {
-                m_error = SSL_get_error( m_ssl, result );
-                if( ( m_error != SSL_ERROR_WANT_READ ) && ( m_error != SSL_ERROR_NONE ) )
-                {
-                    Shutdown();
-                }
-                ok = false;
-            }
-        }
-        return ok;
-    }
-    #endif // USE_SSL
-
     bool Socket::Read( uint8_t &a_value, bool a_block /*= false*/ ) noexcept
     {
-        #ifdef USE_SSL
-        if( m_flags.IsSet( SocketFlags::Secure ) )
-        {
-            return Read_SSL( a_value, a_block );
-        }
-        #endif // USE_SSL
         ::utils::Lock lock( this );
         bool ok = Valid();
         if( ok )
@@ -442,43 +251,8 @@ namespace utils
         return ok;
     }
 
-    #ifdef USE_SSL
-    uint32_t Socket::Read_SSL( uint8_t *a_value, uint32_t a_length, bool a_block /*= false*/ ) noexcept
-    {
-        ::utils::Lock lock( this );
-        if( ( nullptr == a_value ) || ( 0 == a_length ) || !m_flags.IsSet( SocketFlags::Secure ) )
-        {
-            return Valid();
-        }
-        size_t read = 0;
-        if( Valid() && ( a_length > 0 ) )
-        {
-            int32_t result = SSL_peek_ex( m_ssl, a_value, a_length, &read );
-            if( ( result > 0 ) || a_block )
-            {
-                result = SSL_read_ex( m_ssl, a_value, a_length, &read );
-            }
-            if( result <= 0 )
-            {
-                m_error = SSL_get_error( m_ssl, result );
-                if( ( m_error != SSL_ERROR_WANT_READ ) && ( m_error != SSL_ERROR_NONE ) )
-                {
-                    Shutdown();
-                }
-            }
-        }
-        return static_cast< uint32_t >( read );
-    }
-    #endif // USE_SSL
-
     uint32_t Socket::Read( uint8_t *a_value, uint32_t a_length, bool a_block /*= false*/ ) noexcept
     {
-        #ifdef USE_SSL
-        if( m_flags.IsSet( SocketFlags::Secure ) )
-        {
-            return Read_SSL( a_value, a_length, a_block );
-        }
-        #endif // USE_SSL
         ::utils::Lock lock( this );
         if( ( nullptr == a_value ) || ( 0 == a_length ) )
         {
@@ -531,36 +305,8 @@ namespace utils
         return Valid();
     }
 
-    #ifdef USE_SSL
-    bool Socket::Peek_SSL( uint8_t &a_value ) noexcept
-    {
-        ::utils::Lock lock( this );
-        bool ok = Valid() && m_flags.IsSet( SocketFlags::Secure );
-        if( ok )
-        {
-            int32_t result = SSL_peek( m_ssl, &a_value, sizeof( uint8_t ) );
-            if( result <= 0 )
-            {
-                m_error = SSL_get_error( m_ssl, result );
-                if( ( m_error != SSL_ERROR_WANT_READ ) && ( m_error != SSL_ERROR_NONE ) )
-                {
-                    Shutdown();
-                }
-                ok = false;
-            }
-        }
-        return ok;
-    }
-    #endif // USE_SSL
-
     bool Socket::Peek( uint8_t &a_value ) noexcept
     {
-        #ifdef USE_SSL
-        if( m_flags.IsSet( SocketFlags::Secure ) )
-        {
-            return Peek_SSL( a_value );
-        }
-        #endif // USE_SSL
         ::utils::Lock lock( this );
         bool ok = Valid();
         if( ok )
@@ -579,39 +325,8 @@ namespace utils
         return ok;
     }
 
-    #ifdef USE_SSL
-    uint32_t Socket::Peek_SSL( uint8_t *a_value, uint32_t a_length ) noexcept
-    {
-        ::utils::Lock lock( this );
-        if( ( nullptr == a_value ) || ( 0 == a_length ) || !m_flags.IsSet( SocketFlags::Secure ) )
-        {
-            return Valid();
-        }
-        size_t read = 0;
-        if( Valid() && ( a_length > 0 ) )
-        {
-            int32_t result = SSL_peek_ex( m_ssl, a_value, a_length, &read );
-            if( result <= 0 )
-            {
-                m_error = SSL_get_error( m_ssl, result );
-                if( ( m_error != SSL_ERROR_WANT_READ ) && ( m_error != SSL_ERROR_NONE ) )
-                {
-                    Shutdown();
-                }
-            }
-        }
-        return static_cast< uint32_t >( read );
-    }
-    #endif // USE_SSL
-
     uint32_t Socket::Peek( uint8_t *a_value, uint32_t a_length ) noexcept
     {
-        #ifdef USE_SSL
-        if( m_flags.IsSet( SocketFlags::Secure ) )
-        {
-            return Peek_SSL( a_value, a_length );
-        }
-        #endif // USE_SSL
         ::utils::Lock lock( this );
         if( ( nullptr == a_value ) || ( 0 == a_length ) )
         {
@@ -678,36 +393,8 @@ namespace utils
         return m_valid;
     }
 
-    #ifdef USE_SSL
-    bool Socket::Write_SSL( const uint8_t &a_value ) noexcept
-    {
-        ::utils::Lock lock( this );
-        bool ok = Valid();
-        if( ok )
-        {
-            int32_t result = SSL_write( m_ssl, &a_value, sizeof( uint8_t ) );
-            if( result <= 0 )
-            {
-                m_error = SSL_get_error( m_ssl, result );
-                if( ( m_error != SSL_ERROR_WANT_WRITE ) && ( m_error != SSL_ERROR_NONE ) )
-                {
-                    Shutdown();
-                }
-                ok = false;
-            }
-        }
-        return ok;
-    }
-    #endif // USE_SSL
-
     bool Socket::Write( const uint8_t &a_value ) noexcept
     {
-        #ifdef USE_SSL
-        if( m_flags.IsSet( SocketFlags::Secure ) )
-        {
-            return Write_SSL( a_value );
-        }
-        #endif // USE_SSL
         ::utils::Lock lock( this );
         bool ok = Valid();
         if( ok )
@@ -722,49 +409,8 @@ namespace utils
         return ok;
     }
 
-    #ifdef USE_SSL
-    uint32_t Socket::Write_SSL( const uint8_t *a_value, uint32_t a_length ) noexcept
-    {
-        ::utils::Lock lock( this );
-        if( nullptr == a_value )
-        {
-            return Valid();
-        }
-        uint32_t total = 0;
-        while( Valid() && ( a_length > total ) )
-        {
-            int32_t result = 0;
-            size_t  sent = 0;
-            result = SSL_write_ex( m_ssl, a_value + total, ( a_length - total ), &sent );
-            if( result > 0 )
-            {
-                total += sent;
-            }
-            else
-            {
-                m_error = SSL_get_error( m_ssl, result );
-                if( ( m_error == SSL_ERROR_WANT_WRITE ) || ( m_error == SSL_ERROR_NONE ) )
-                {
-                    usleep( 500 );
-                }
-                else
-                {
-                    Shutdown();
-                }
-            }
-        }
-        return total;
-    }
-    #endif // USE_SSL
-
     uint32_t Socket::Write( const uint8_t *a_value, uint32_t a_length ) noexcept
     {
-        #ifdef USE_SSL
-        if( m_flags.IsSet( SocketFlags::Secure ) )
-        {
-            return Write_SSL( a_value, a_length );
-        }
-        #endif // USE_SSL
         ::utils::Lock lock( this );
         if( nullptr == a_value )
         {

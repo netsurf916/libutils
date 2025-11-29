@@ -12,7 +12,6 @@
 #include <utils/Readable.hpp>
 #include <utils/Writable.hpp>
 #include <utils/Lock.hpp>
-#include <netinet/in.h>
 
 namespace utils
 {
@@ -45,19 +44,19 @@ namespace utils
         protected:
             virtual ~Serializable() {}
 
-            bool SerializeType( Writable &a_out );
-            bool DeserializeType( Readable &a_in );
+            bool SerializeType  ( Writable &a_out );
+            bool DeserializeType( Readable &a_in  );
 
         public:
             // Serialization helper functions
-            uint8_t  ToNetwork  ( uint8_t  a_value );
-            uint8_t  FromNetwork( uint8_t  a_value );
-            uint16_t ToNetwork  ( uint16_t a_value );
-            uint16_t FromNetwork( uint16_t a_value );
-            uint32_t ToNetwork  ( uint32_t a_value );
-            uint32_t FromNetwork( uint32_t a_value );
-            uint64_t ToNetwork  ( uint64_t a_value );
-            uint64_t FromNetwork( uint64_t a_value );
+            static uint8_t  ToNetwork  ( uint8_t  a_value );
+            static uint8_t  FromNetwork( uint8_t  a_value );
+            static uint16_t ToNetwork  ( uint16_t a_value );
+            static uint16_t FromNetwork( uint16_t a_value );
+            static uint32_t ToNetwork  ( uint32_t a_value );
+            static uint32_t FromNetwork( uint32_t a_value );
+            static uint64_t ToNetwork  ( uint64_t a_value );
+            static uint64_t FromNetwork( uint64_t a_value );
     };
 }
 
