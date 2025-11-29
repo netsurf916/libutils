@@ -477,7 +477,7 @@ namespace utils
                     else if( m_response.length() > 0 )
                     {
                         uint32_t sent = 0;
-                        while( sent < m_response.length() )
+                        while( ( sent < m_response.length() ) && a_socket->Valid() )
                         {
                             sent += a_socket->Write( ( uint8_t * )( m_response.c_str() + sent ), static_cast< uint32_t >( m_response.length() - sent ) );
                         }
@@ -543,7 +543,7 @@ namespace utils
                         else if( m_response.length() > 0 )
                         {
                             uint32_t sent = 0;
-                            while( sent < m_response.length() )
+                            while( ( sent < m_response.length() ) && a_socket->Valid() )
                             {
                                 sent += a_socket->Write( ( uint8_t * )( m_response.c_str() + sent ), static_cast< uint32_t >( m_response.length() - sent ) );
                             }
