@@ -34,7 +34,6 @@ struct ThreadCTX : public Lockable
 };
 
 void *ProcessClient( void *a_client );
-//void  PrintHttpRequest( shared_ptr< HttpRequest > &a_request );
 
 int main( int argc, char *argv[] )
 {
@@ -314,24 +313,3 @@ void *ProcessClient( void *a_clientCtx )
     pthread_exit( nullptr );
 }
 
-/*
-void PrintHttpRequest( shared_ptr< HttpRequest > &a_request )
-{
-    if( a_request == nullptr )
-    {
-        return;
-    }
-    shared_ptr< KeyValuePair< string, string > > start = a_request->Meta();
-    printf( " [+] %s %s %s\n", a_request->Method().c_str(), a_request->Uri().c_str(), a_request->Version().c_str() );
-    while( start )
-    {
-        printf( " [+] %s: %s\n", start->Key().c_str(), start->Value().c_str() );
-        start = start->Next();
-    }
-    ::std::string lasterror = a_request->LastError();
-    if( lasterror.length() > 0 )
-    {
-        printf( " [!] Last error: %s\n", lasterror.c_str() );
-    }
-}
-*/

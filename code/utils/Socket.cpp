@@ -82,7 +82,6 @@ namespace utils
                                 }
                                 if( 0 == listen( sockfd, 100 ) )
                                 {
-                                    //fcntl( sockfd, F_SETFL, O_NONBLOCK );
                                     break;
                                 }
                                 m_error = errno;
