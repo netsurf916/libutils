@@ -1,6 +1,6 @@
 CFLAGS      = -O2 -pedantic \
               -W -Wall -Wextra -Wunused -Werror \
-              -fstack-protector-all -g
+              -fstack-protector-all
 
 CLIBFLAGS   = -fPIC
 CXXFLAGS    = -std=c++23

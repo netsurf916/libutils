@@ -16,7 +16,7 @@
 #include <unistd.h>
 #include <stdio.h>
 
-#define NUMTHREADS 4
+#define NUMTHREADS 64
 #define DEFMIME    "none" // Make sure this is defined in the ini file
 
 using namespace utils;
@@ -34,7 +34,7 @@ struct ThreadCTX : public Lockable
 };
 
 void *ProcessClient( void *a_client );
-void  PrintHttpRequest( shared_ptr< HttpRequest > &a_request );
+//void  PrintHttpRequest( shared_ptr< HttpRequest > &a_request );
 
 int main( int argc, char *argv[] )
 {
@@ -147,9 +147,9 @@ int main( int argc, char *argv[] )
     pthread_exit( nullptr );
 }
 
-void *ProcessClient( void *a_client )
+void *ProcessClient( void *a_clientCtx )
 {
-    ThreadCTX *context = ( ThreadCTX * ) a_client;
+    ThreadCTX *context = ( ThreadCTX * ) a_clientCtx;
     shared_ptr< HttpRequest > httpRequest = make_shared< HttpRequest >();
     shared_ptr< utils::Lock > lock        = make_shared< Lock >( context );
 
@@ -314,6 +314,7 @@ void *ProcessClient( void *a_client )
     pthread_exit( nullptr );
 }
 
+/*
 void PrintHttpRequest( shared_ptr< HttpRequest > &a_request )
 {
     if( a_request == nullptr )
@@ -333,3 +334,4 @@ void PrintHttpRequest( shared_ptr< HttpRequest > &a_request )
         printf( " [!] Last error: %s\n", lasterror.c_str() );
     }
 }
+*/
