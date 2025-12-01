@@ -7,7 +7,7 @@ CXXFLAGS    = -std=c++23
 
 INCLUDES    = -I./include/ -I/usr/local/include/
 
-LIBS        = -lutils -lpthread -lcrypto -lncurses
+LIBS        = -lutils -lpthread -lncurses
 LIBPATHS    = -L./ -L/usr/local/lib/
 
 SRCDIR      = code/utils/

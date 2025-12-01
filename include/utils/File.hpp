@@ -50,6 +50,8 @@ namespace utils
             uint64_t Size();
             int64_t  Position();
             bool     Exists();
+            bool     IsFile();
+            bool     IsDirectory();
             uint32_t ModificationTime();
             bool     Seek( int64_t a_position );
 
@@ -68,11 +70,11 @@ namespace utils
             uint32_t Write( const uint8_t *a_value, uint32_t a_length ) noexcept final;
             bool     Write( ::std::shared_ptr< Buffer > &a_buffer ) noexcept;
 
-            bool   Delete();
-            bool   Close();
+            bool     Delete();
+            bool     Close();
 
         protected:
-            bool   Open();
+            bool     Open();
     };
 }
 

@@ -96,7 +96,7 @@ int main( int argc, char *argv[] )
         uint32_t port = 0;
         shared_ptr< Socket > client = ( availableThreads > 0 )? listener->Accept( address, port ): nullptr;
 
-        if( client && listener->Valid() )
+        if( client && client->Valid() && listener->Valid() )
         {
             printf( " [*] Client connected: %s:%u\n", address.c_str(), port );
             for( uint32_t c = 0; ( c < NUMTHREADS ); ++c )
@@ -183,27 +183,32 @@ void *ProcessClient( void *a_clientCtx )
         string mimeType;
         string hostHome;
         string defaultDoc;
+        string listDirs;
+        bool   bListDirs = false;
         int response = 0;
         printf( " [*] Remote: %s:%u\n", context->address.c_str(), context->port );
-        httpRequest->Log( *( context->logger ) ); // Write the log first so that LastError() isn't reset
-//        PrintHttpRequest( httpRequest );          // Reads LastError() which resets the internal string
+        httpRequest->Log( *( context->logger ) );
 
         if( ( context->settings->ReadValue( "path", httpRequest->Host().c_str(), hostHome ) ||
               context->settings->ReadValue( "path", "default", hostHome ) ) &&
             ( context->settings->ReadValue( "document", httpRequest->Host().c_str(), defaultDoc ) ||
               context->settings->ReadValue( "document", "default", defaultDoc ) ) )
         {
+            if( context->settings->ReadValue( "document", "directory", listDirs ) && ( listDirs == "list" ) )
+            {
+                bListDirs = true;
+            }
             fileName = httpRequest->Uri();
             mimeType = DEFMIME;
             // Decode the URI and lookup the matching mime-type or use the default
             if( !HttpHelpers::UriDecode( hostHome, defaultDoc, fileName, fileType, mimeType ) ||
-                ( !context->settings->ReadValue( "mime-types", fileType.c_str(), mimeType ) 
-                && !context->settings->ReadValue( "mime-types", DEFMIME, mimeType ) ) )
+                !context->settings->ReadValue( "mime-types", fileType.c_str(), mimeType ) )
             {
                 fileName.clear();
                 mimeType.clear();
             }
         }
+        printf( " [*] Filename: %s; Mime: %s\n", fileName.c_str(), mimeType.c_str() );
 
         // Process internal operation requests
         if( mimeType == "internal" )
@@ -278,7 +283,7 @@ void *ProcessClient( void *a_clientCtx )
             }
         }
 
-        response = httpRequest->Respond( context->socket, fileName, mimeType );
+        response = httpRequest->Respond( context->socket, fileName, mimeType, bListDirs );
 
         printf( " [+] Response: %d\n", response );
         {

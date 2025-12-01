@@ -4,9 +4,9 @@
 */
 
 #include <utils/File.hpp>
-#include <sys/stat.h>
 #include <cstring>
 #include <stdio.h>
+#include <sys/stat.h>
 
 namespace utils
 {
@@ -15,6 +15,7 @@ namespace utils
     , m_file( a_file )
     , m_ready( true )
     {
+        m_ready = IsFile();
     }
 
     File::File( const char *a_fileName, uint32_t a_mode /*= FileMode::DefaultRead*/ )
@@ -23,6 +24,7 @@ namespace utils
     , m_file( nullptr )
     , m_ready( true )
     {
+        m_ready = IsFile();
     }
 
     File::~File()
@@ -98,33 +100,44 @@ namespace utils
     {
         ::utils::Lock lock( this );
         struct stat fileStat;
-        if( nullptr == m_file )
+        if( stat( m_fileName.c_str(), &fileStat ) != 0 )
         {
-            Open();
+            return false;
         }
-        if( nullptr != m_file )
+        return S_ISREG( fileStat.st_mode ) || S_ISDIR( fileStat.st_mode );
+    }
+
+    bool File::IsFile()
+    {
+        ::utils::Lock lock( this );
+        struct stat fileStat;
+        if( stat( m_fileName.c_str(), &fileStat ) != 0 )
         {
-            return ( 0 == fstat( fileno( m_file ), &fileStat ) );
+            return false;
         }
-        return false;
+        return S_ISREG( fileStat.st_mode );
+    }
+
+    bool File::IsDirectory()
+    {
+        ::utils::Lock lock( this );
+        struct stat fileStat;
+        if( stat( m_fileName.c_str(), &fileStat ) != 0 )
+        {
+            return false;
+        }
+        return S_ISDIR( fileStat.st_mode );
     }
 
     uint32_t File::ModificationTime()
     {
         ::utils::Lock lock( this );
         struct stat fileStat;
-        if( nullptr == m_file )
+        if( stat( m_fileName.c_str(), &fileStat ) != 0 )
         {
-            Open();
+            return 0;
         }
-        if( m_ready && ( nullptr != m_file ) )
-        {
-            if( 0 == fstat( fileno( m_file ), &fileStat ) )
-            {
-                return static_cast< uint32_t >( fileStat.st_mtime );
-            }
-        }
-        return 0;
+        return static_cast< uint32_t >( fileStat.st_mtime );
     }
 
     bool File::Seek( int64_t a_position )

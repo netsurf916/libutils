@@ -9,6 +9,8 @@
 #include <utils/File.hpp>
 #include <utils/Thread.hpp>
 #include <unistd.h>
+#include <sys/stat.h>
+#include <dirent.h>
 
 #define MAXBUFFERLEN 65536
 
@@ -356,28 +358,34 @@ namespace utils
         return ( !m_timeout && ( m_method.length() > 0 ) && ( m_uri.length() > 0 ) && ( m_version.length() > 0 ) );
     }
 
-    int32_t HttpRequest::Respond( ::std::shared_ptr< Socket > &a_socket, ::std::string &a_fileName, ::std::string &a_type )
+    int32_t HttpRequest::Respond( ::std::shared_ptr< Socket > &a_socket, ::std::string &a_fileName, ::std::string &a_type, bool a_listDirs )
     {
         utils::Lock lock( this );
+        char buffer[ MAXBUFFERLEN ];
 
-        if( !a_socket )
+        if( !a_socket || !( a_socket->Valid() ) )
         {
             return -1;
         }
-        utils::Lock    valueLock( a_socket.get() );
+        utils::Lock valueLock( a_socket.get() );
 
         auto sendb = ::std::make_shared< Buffer >( MAXBUFFERLEN );
         auto file  = ::std::make_shared< File >( a_fileName.c_str() );
 
-        if( !a_socket->Valid() || !sendb || !file || ( ( ( m_method == "HEAD" ) || ( m_method == "GET" ) ) && ( !file->Exists() && ( m_response.length() == 0 ) ) ) )
+        if( !sendb || !file )
+        {
+            return -1;
+        }
+
+        if( ( ( m_method == "HEAD" ) || ( m_method == "GET" ) ) && !file->Exists() && ( m_response.length() == 0 ) )
         {
             if( a_socket->Valid() && sendb )
             {
                 sendb->Write( ( const uint8_t * )"HTTP/1.1 404 NOT FOUND\r\n" );
                 sendb->Write( ( const uint8_t * )"Connection: Close\r\n" );
-                sendb->Write( ( const uint8_t * )"Content-type: text/html\r\n" );
-                sendb->Write( ( const uint8_t * )"Content-length: 57\r\n\r\n" );
-                sendb->Write( ( const uint8_t * )"<html><head><center>Not Found!</center></head></html>\r\n\r\n" );
+                sendb->Write( ( const uint8_t * )"Content-type: text/plain\r\n" );
+                sendb->Write( ( const uint8_t * )"Content-length: 14\r\n\r\n" );
+                sendb->Write( ( const uint8_t * )"NOT FOUND!\r\n\r\n" );
                 while( ( sendb->Length() > 0 ) && a_socket->Valid() )
                 {
                     a_socket->Write( sendb );
@@ -390,27 +398,27 @@ namespace utils
         {
             sendb->Write( ( const uint8_t * )"HTTP/1.1 408 TIMEOUT\r\n" );
             sendb->Write( ( const uint8_t * )"Connection: Close\r\n" );
-            sendb->Write( ( const uint8_t * )"Content-type: text/html\r\n" );
-            sendb->Write( ( const uint8_t * )"Content-length: 55\r\n\r\n" );
-            sendb->Write( ( const uint8_t * )"<html><head><center>Timeout!</center></head></html>\r\n\r\n" );
+            sendb->Write( ( const uint8_t * )"Content-type: text/plain\r\n" );
+            sendb->Write( ( const uint8_t * )"Content-length: 12\r\n\r\n" );
+            sendb->Write( ( const uint8_t * )"TIMEOUT!\r\n\r\n" );
             while( sendb->Length() && a_socket->Valid() )
             {
                 a_socket->Write( sendb );
             }
             return 408;
         }
-        else if( ( ( m_method  == "HEAD" ) ||
-                   ( m_method  == "GET" ) ) &&
-                 ( ( m_version == "HTTP/1.1" ) ||
-                   ( m_version == "HTTP/1.0" ) ) )
+        if( ( file->IsFile() || ( m_response.length() > 0 ) ) &&
+            ( ( ( m_method  == "HEAD" ) ||
+                ( m_method  == "GET" ) ) &&
+              ( ( m_version == "HTTP/1.1" ) ||
+                ( m_version == "HTTP/1.0" ) ) ) )
         {
             if( a_type.length() > 0 )
             {
-                char buffer[ MAXBUFFERLEN ];
                 // Partial content is only allowed for files, not internally generated content
                 if( ( m_method == "GET" ) && ( m_start >= 0 ) )
                 {
-                    if( file->Exists() && ( m_end < m_start ) )
+                    if( file->IsFile() && ( m_end < m_start ) )
                     {
                         m_end = file->Size() - 1;
                     }
@@ -443,7 +451,7 @@ namespace utils
                     {
                         a_socket->Write( sendb );
                     }
-                    if( file->Exists() )
+                    if( file->IsFile() )
                     {
                         if( ( m_end >= m_start ) && file->Seek( m_start ) )
                         {
@@ -486,7 +494,7 @@ namespace utils
                 }
                 else
                 {
-                    if( file->Exists() )
+                    if( file->IsFile() )
                     {
                         snprintf( buffer, sizeof( buffer ), "%lu", file->Size() );
                     }
@@ -509,7 +517,7 @@ namespace utils
                     }
                     if( m_method == "GET" )
                     {
-                        if( file->Exists() )
+                        if( file->IsFile() )
                         {
                             while( ( ( file->Size() - file->Position() ) > 0 ) && a_socket->Valid() )
                             {
@@ -565,6 +573,68 @@ namespace utils
                 }
                 return 404;
             }
+        }
+        else if( a_listDirs && file->IsDirectory() &&
+               ( ( ( m_method  == "HEAD" ) ||
+                   ( m_method  == "GET" ) ) &&
+                 ( ( m_version == "HTTP/1.1" ) ||
+                   ( m_version == "HTTP/1.0" ) ) ) )
+        {
+            sendb->Write( ( const uint8_t * )"HTTP/1.1 200 OK\r\n" );
+            sendb->Write( ( const uint8_t * )"Connection: Close\r\n" );
+            sendb->Write( ( const uint8_t * )"Content-type: text/html\r\n" );
+            sendb->Write( ( const uint8_t * )"\r\n" );
+            while( sendb->Length() && a_socket->Valid() )
+            {
+                a_socket->Write( sendb );
+            }
+            if( m_method == "GET" )
+            {
+                DIR *dir = opendir( file->Name().c_str() );
+                if( nullptr == dir )
+                {
+                    return 200;
+                }
+
+                // Start the html content
+                sendb->Write( ( const uint8_t * )"<head><title>Directory Listing</title></head>\n<body>\n" );
+
+                // Enumerate the directory contents
+                struct dirent *entry;
+                while( ( entry = readdir( dir ) ) != nullptr )
+                {
+                    // Skip symlinks
+                    if( entry->d_type == DT_LNK )
+                    {
+                        continue;
+                    }
+                    // Skip ., .., and hidden files
+                    if( entry->d_name[0] == '.' )
+                    {
+                        continue;
+                    }
+                    sendb->Write( ( const uint8_t * )"<a href=\"" );
+                    sendb->Write( ( const uint8_t * )entry->d_name );
+                    sendb->Write( ( const uint8_t * )"\">");
+                    sendb->Write( ( const uint8_t * )entry->d_name );
+                    if( entry->d_type == DT_DIR )
+                    {
+                        sendb->Write( ( const uint8_t * )"/" );
+                    }
+                    sendb->Write( ( const uint8_t * )"</a><br>\n" );
+                    while( sendb->Length() && a_socket->Valid() )
+                    {
+                        a_socket->Write( sendb );
+                    }
+                }
+                closedir( dir );
+                sendb->Write( ( const uint8_t * )"</body>\n" );
+                while( sendb->Length() && a_socket->Valid() )
+                {
+                    a_socket->Write( sendb );
+                }
+            }
+            return 200;
         }
         else
         {
@@ -757,21 +827,43 @@ namespace utils
     {
         while( HttpHelpers::UriDecode( a_uri, a_ext ) != 0 );
 
-        ::std::string newUri;
-        newUri = a_base;
+        ::std::string newUri( a_base );
         if( ( newUri.length() > 0 ) && ( '/' != newUri[ newUri.length() - 1 ] ) )
         {
             newUri += '/';
         }
         newUri += a_uri;
-        if( ( newUri.length() > 0 ) && ( '/' == newUri[ newUri.length() - 1 ] ) )
+        bool isDir = IsDirectory( newUri );
+        if( isDir && ( newUri.length() > 0 ) && ( '/' != newUri[ newUri.length() - 1 ] ) )
         {
-            while( HttpHelpers::UriDecode( a_defaultDoc, a_ext ) != 0 );
-            newUri += a_defaultDoc;
+            newUri += '/';
         }
+
+        // If this is a directory, check if the default document exists
+        if( isDir || ( a_ext.length() == 0 ) )
+        {
+            ::std::string newDefUri( newUri );
+            while( HttpHelpers::UriDecode( a_defaultDoc, a_ext ) != 0 );
+            newDefUri += a_defaultDoc;
+
+            // Use the default document if it exists
+            if( IsFile( newDefUri ) )
+            {
+                newUri = newDefUri;
+            }
+            else
+            {
+                // Clear the extension in the case the default document isn't used
+                a_ext.clear();
+                // Treating it like a directory either way at this point
+                isDir = true;
+            }
+        }
+
         if( a_ext.length() == 0 )
         {
-            a_ext = a_defmime;
+            // Set the extention to HTML for directory listings
+            a_ext = ( isDir )? ".html": a_defmime;
         }
         a_uri = newUri;
 
@@ -780,5 +872,25 @@ namespace utils
             return true;
         }
         return false;
+    }
+
+    bool HttpHelpers::IsDirectory( ::std::string &a_path )
+    {
+        struct stat st;
+        if( stat( a_path.c_str(), &st ) != 0 )
+        {
+            return false;
+        }
+        return S_ISDIR( st.st_mode );
+    }
+
+    bool HttpHelpers::IsFile( ::std::string &a_path )
+    {
+        struct stat st;
+        if( stat( a_path.c_str(), &st ) != 0 )
+        {
+            return false;
+        }
+        return S_ISREG( st.st_mode );
     }
 }
