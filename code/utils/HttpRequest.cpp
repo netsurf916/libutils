@@ -615,6 +615,10 @@ namespace utils
                     }
                     sendb->Write( ( const uint8_t * )"<a style=\"font-family: monospace;\" href=\"" );
                     sendb->Write( ( const uint8_t * )entry->d_name );
+                    if( entry->d_type == DT_DIR )
+                    {
+                        sendb->Write( ( const uint8_t * )"/" );
+                    }
                     sendb->Write( ( const uint8_t * )"\">");
                     sendb->Write( ( const uint8_t * )entry->d_name );
                     if( entry->d_type == DT_DIR )
