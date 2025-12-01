@@ -202,7 +202,8 @@ void *ProcessClient( void *a_clientCtx )
             mimeType = DEFMIME;
             // Decode the URI and lookup the matching mime-type or use the default
             if( !HttpHelpers::UriDecode( hostHome, defaultDoc, fileName, fileType, mimeType ) ||
-                !context->settings->ReadValue( "mime-types", fileType.c_str(), mimeType ) )
+                ( !context->settings->ReadValue( "mime-types", fileType.c_str(), mimeType )
+                && !context->settings->ReadValue( "mime-types", DEFMIME, mimeType ) ) )
             {
                 fileName.clear();
                 mimeType.clear();

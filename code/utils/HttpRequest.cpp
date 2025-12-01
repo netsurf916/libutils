@@ -866,8 +866,7 @@ namespace utils
 
         if( a_ext.length() == 0 )
         {
-            // Set the extention to HTML for directory listings
-            a_ext = ( isDir )? ".html": a_defmime;
+            a_ext = a_defmime;
         }
         a_uri = newUri;
 
