@@ -597,7 +597,9 @@ namespace utils
                 }
 
                 // Start the html content
-                sendb->Write( ( const uint8_t * )"<head><title>Directory Listing</title></head>\n<body>\n" );
+                sendb->Write( ( const uint8_t * )"<head><title>");
+                sendb->Write( ( const uint8_t * )HttpHelpers::UriDecode( m_uri ).c_str() );
+                sendb->Write( ( const uint8_t * )"</title><meta charset=\"utf-8\"></head>\n<body>\n" );
 
                 // Enumerate the directory contents
                 struct dirent *entry;
@@ -614,13 +616,13 @@ namespace utils
                         continue;
                     }
                     sendb->Write( ( const uint8_t * )"<a style=\"font-family: monospace;\" href=\"" );
-                    sendb->Write( ( const uint8_t * )entry->d_name );
+                    sendb->Write( ( const uint8_t * )HttpHelpers::HtmlEscape( HttpHelpers::UriEncode( entry->d_name ) ).c_str() );
                     if( entry->d_type == DT_DIR )
                     {
                         sendb->Write( ( const uint8_t * )"/" );
                     }
                     sendb->Write( ( const uint8_t * )"\">");
-                    sendb->Write( ( const uint8_t * )entry->d_name );
+                    sendb->Write( ( const uint8_t * )HttpHelpers::HtmlEscape( entry->d_name ).c_str() );
                     if( entry->d_type == DT_DIR )
                     {
                         sendb->Write( ( const uint8_t * )"/" );
@@ -738,7 +740,7 @@ namespace utils
         }
     }
 
-    uint8_t HttpHelpers::CharToHex( char a_value )
+    uint8_t HttpHelpers::HexToInt( char a_value )
     {
         if( ( a_value >= '0' ) && ( a_value <= '9' ) )
         {
@@ -765,6 +767,90 @@ namespace utils
             default:
                 return 128;
         }
+    }
+
+    char HttpHelpers::IntToHex( uint8_t a_value )
+    {
+        const char hex[] = "0123456789ABCDEF";
+        return hex[ a_value & 0x0F ];
+    }
+
+    ::std::string HttpHelpers::HtmlEscape( const ::std::string &a_string )
+    {
+        ::std::string newString;
+
+        for( uint32_t i = 0; i < a_string.length(); ++i )
+        {
+            switch( a_string[ i ] )
+            {
+                case '&': newString += "&amp;";
+                    break;
+                case '<': newString += "&lt;";
+                    break;
+                case '>': newString += "&gt;";
+                    break;
+                case '"': newString += "&quot;";
+                    break;
+                case '\'': newString += "&#39;";
+                    break;
+                default: newString += a_string[ i ];
+                    break;
+            }
+        }
+
+        return newString;
+    }
+
+
+    ::std::string HttpHelpers::UriEncode( const ::std::string &a_string )
+    {
+        ::std::string newString;
+
+        for( uint32_t i = 0; i < a_string.length(); ++i )
+        {
+            if( Tokens::IsNotPrintable( ( uint8_t )a_string[ i ] ) )
+            {
+                newString += "%";
+                newString += HttpHelpers::IntToHex( a_string[ i ] >>   4 );
+                newString += HttpHelpers::IntToHex( a_string[ i ] & 0x0F );
+            }
+            else
+            {
+                newString += a_string[ i ];
+            }
+        }
+
+        return newString;
+    }
+
+    ::std::string HttpHelpers::UriDecode( const ::std::string &a_string )
+    {
+        ::std::string newString;
+
+        for( uint32_t i = 0; i < a_string.length(); ++i )
+        {
+            switch( a_string[ i ] )
+            {
+                case '%':
+                    if( i < ( uint32_t )( a_string.length() - 2 ) )
+                    {
+                        char a = HttpHelpers::HexToInt( a_string[ i + 1 ] );
+                        char b = HttpHelpers::HexToInt( a_string[ i + 2 ] );
+                        if( ( a <= 0x0F ) && ( b <= 0x0F ) )
+                        {
+                            newString += ( char )( ( a << 4 ) & 0xF0 ) +
+                                        ( char )( ( b      ) & 0x0F );
+                            i += 2;
+                        }
+                    }
+                    break;
+                default:
+                    newString += a_string[ i ];
+                    break;
+            }
+        }
+
+        return newString;
     }
 
     uint32_t HttpHelpers::UriDecode( ::std::string &a_uri, ::std::string &a_ext )
@@ -794,8 +880,8 @@ namespace utils
                 case '%':
                     if( i < ( uint32_t )( a_uri.length() - 2 ) )
                     {
-                        char a = HttpHelpers::CharToHex( a_uri[ i + 1 ] );
-                        char b = HttpHelpers::CharToHex( a_uri[ i + 2 ] );
+                        char a = HttpHelpers::HexToInt( a_uri[ i + 1 ] );
+                        char b = HttpHelpers::HexToInt( a_uri[ i + 2 ] );
                         if( ( a <= 0x0F ) && ( b <= 0x0F ) )
                         {
                             newUri += ( char )( ( a << 4 ) & 0xF0 ) +
@@ -806,17 +892,10 @@ namespace utils
                     }
                     break;
                 default:
-                    if( ( a_uri[ i ] >= ' ' ) && ( a_uri[ i ] < '~' ) )
+                    newUri += a_uri[ i ];
+                    if( a_ext.length() > 0 )
                     {
-                        newUri += a_uri[ i ];
-                        if( a_ext.length() > 0 )
-                        {
-                            a_ext += a_uri[ i ];
-                        }
-                    }
-                    else
-                    {
-                        a_ext.clear();
+                        a_ext += a_uri[ i ];
                     }
                     break;
             }
