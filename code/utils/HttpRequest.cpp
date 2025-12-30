@@ -564,9 +564,9 @@ namespace utils
             {
                 sendb->Write( ( const uint8_t * )"HTTP/1.1 404 NOT FOUND\r\n" );
                 sendb->Write( ( const uint8_t * )"Connection: Close\r\n" );
-                sendb->Write( ( const uint8_t * )"Content-type: text/html\r\n" );
-                sendb->Write( ( const uint8_t * )"Content-length: 57\r\n\r\n" );
-                sendb->Write( ( const uint8_t * )"<html><head><center>Not Found!</center></head></html>\r\n\r\n" );
+                sendb->Write( ( const uint8_t * )"Content-type: text/plain\r\n" );
+                sendb->Write( ( const uint8_t * )"Content-length: 14\r\n\r\n" );
+                sendb->Write( ( const uint8_t * )"NOT FOUND!\r\n\r\n" );
                 while( sendb->Length() && a_socket->Valid() )
                 {
                     a_socket->Write( sendb );
@@ -597,8 +597,8 @@ namespace utils
                 }
 
                 // Start the html content
-                sendb->Write( ( const uint8_t * )"<head><title>");
-                sendb->Write( ( const uint8_t * )HttpHelpers::UriDecode( m_uri ).c_str() );
+                sendb->Write( ( const uint8_t * )"<!DOCTYPE html>\n<head><title>");
+                sendb->Write( ( const uint8_t * )HttpHelpers::HtmlEscape( HttpHelpers::UriDecode( m_uri ) ).c_str() );
                 sendb->Write( ( const uint8_t * )"</title><meta charset=\"utf-8\"></head>\n<body>\n" );
 
                 // Enumerate the directory contents
@@ -616,7 +616,7 @@ namespace utils
                         continue;
                     }
                     sendb->Write( ( const uint8_t * )"<a style=\"font-family: monospace;\" href=\"" );
-                    sendb->Write( ( const uint8_t * )HttpHelpers::HtmlEscape( HttpHelpers::UriEncode( entry->d_name ) ).c_str() );
+                    sendb->Write( ( const uint8_t * )HttpHelpers::UriEncode( entry->d_name ).c_str() );
                     if( entry->d_type == DT_DIR )
                     {
                         sendb->Write( ( const uint8_t * )"/" );
@@ -808,7 +808,7 @@ namespace utils
 
         for( uint32_t i = 0; i < a_string.length(); ++i )
         {
-            if( Tokens::IsNotPrintable( ( uint8_t )a_string[ i ] ) )
+            if( !Tokens::IsLetter( ( uint8_t )a_string[ i ] ) )
             {
                 newString += "%";
                 newString += HttpHelpers::IntToHex( a_string[ i ] >>   4 );

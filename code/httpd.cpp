@@ -253,7 +253,7 @@ void *ProcessClient( void *a_clientCtx )
                 {
                     mimeType = "text/html";
                     shared_ptr< KeyValuePair< string, string > > meta = httpRequest->Meta();
-                    httpRequest->Response() += "<html>\n <head>\n  <title>Client Request</title>\n </head>\n<body>";
+                    httpRequest->Response() += "<!DOCTYPE html>\n<html>\n <head>\n  <title>Client Request</title>\n </head>\n<body>";
                     httpRequest->Response() += "Client: ";
                     httpRequest->Response() += context->address;
                     httpRequest->Response() += ":";
