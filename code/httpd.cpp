@@ -159,6 +159,10 @@ void *ProcessClient( void *a_clientCtx )
        !( context->socket->Valid() ) ||
         ( nullptr == httpRequest   ) )
     {
+        if( nullptr != context )
+        {
+            context->running = false;
+        }
         printf( " [!] Client processing failed\n" );
         pthread_exit( nullptr );
     }
