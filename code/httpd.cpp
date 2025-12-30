@@ -119,6 +119,7 @@ int main( int argc, char *argv[] )
                             clients[ c ]->Start();
                             client = nullptr;
                             --availableThreads;
+                            printf( " [+] Client thread started (%s:%u)\n", address.c_str(), port );
                         }
                         else
                         {
@@ -128,7 +129,6 @@ int main( int argc, char *argv[] )
                 }
             }
         } else { sleep(1); } // 1 second delay in case there are no free threads
-        printf( " [+] Client thread started (%s:%u)\n", address.c_str(), port );
 
         // Iterate through the threads to free up any that have finished.
         // Calling reset() will destruct the object and call ~Thread() which
