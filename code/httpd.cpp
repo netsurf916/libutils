@@ -219,8 +219,11 @@ void *ProcessClient( void *a_clientCtx )
                 fileName.clear();
                 mimeType.clear();
             }
+            else
+            {
+                printf( " [*] Filename: %s; Mime: %s\n", fileName.c_str(), mimeType.c_str() );
+            }
         }
-        printf( " [*] Filename: %s; Mime: %s\n", fileName.c_str(), mimeType.c_str() );
 
         // Process internal operation requests
         if( mimeType == "internal" )
