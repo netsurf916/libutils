@@ -116,10 +116,17 @@ int main( int argc, char *argv[] )
                         if( clients[ c ]->GetContext()->socket &&
                             clients[ c ]->GetContext()->socket->Valid() )
                         {
-                            clients[ c ]->Start();
-                            client = nullptr;
-                            --availableThreads;
-                            printf( " [+] Client thread started (%s:%u)\n", address.c_str(), port );
+                            if( clients[ c ]->Start() )
+                            {
+                                client = nullptr;
+                                --availableThreads;
+                                printf( " [+] Client thread started (%s:%u)\n", address.c_str(), port );
+                            }
+                            else
+                            {
+                                clients[ c ]->GetContext()->running = false;
+                                clients[ c ].reset();
+                            }
                         }
                         else
                         {
