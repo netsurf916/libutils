@@ -256,7 +256,9 @@ namespace utils
                                 {
                                     range->Write( ( const uint8_t * ) temp->Value().c_str(), temp->Value().length() );
                                     m_start = -1;
-                                    m_end = -1;
+                                    m_end   = -1;
+                                    m_sset  = false;
+                                    m_eset  = false;
                                     int negative = 0;
                                     TokenType type = TokenType::NotFound;
                                     while( ( type = Tokens::GetToken( *range, token ) ) != TokenType::NotFound )
@@ -320,7 +322,6 @@ namespace utils
                                                 m_lasterror += " (";
                                                 m_lasterror += e.what();
                                                 m_lasterror += ")";
-                                                m_start = -1;
                                                 m_end   = -1;
                                                 m_eset  = false;
                                                 break;
