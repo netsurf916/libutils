@@ -1,6 +1,8 @@
 /**
     File.hpp : File definition
-    Copyright 2015-2021 Daniel Wilson
+    Description: File wrapper for buffered file IO.
+    Copyright 2015-2026 Daniel Wilson
+    SPDX-License-Identifier: MIT
 */
 
 #pragma once

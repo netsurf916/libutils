@@ -1,6 +1,8 @@
 /**
     Lockable.hpp : Lockable interface definitions
-    Copyright 2014-2021 Daniel Wilson
+    Description: Base class providing a lockable interface.
+    Copyright 2014-2026 Daniel Wilson
+    SPDX-License-Identifier: MIT
 */
 
 #pragma once

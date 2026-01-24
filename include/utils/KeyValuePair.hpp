@@ -1,6 +1,8 @@
 /**
     KeyValuePair.hpp : KeyValuePair definition
-    Copyright 2016-2021 Daniel Wilson
+    Description: Key/value pair helper structure.
+    Copyright 2016-2026 Daniel Wilson
+    SPDX-License-Identifier: MIT
 */
 
 #pragma once

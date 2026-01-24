@@ -1,6 +1,7 @@
 /**
     Window.cpp : Window helper class implementation for ncurses
-    Copyright 2023 Daniel Wilson
+    Copyright 2023-2026 Daniel Wilson
+    SPDX-License-Identifier: MIT
 */
 
 #include <utils/Window.hpp>

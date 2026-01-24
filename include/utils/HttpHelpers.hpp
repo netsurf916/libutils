@@ -1,6 +1,8 @@
 /**
     HttpHelpers.hpp : HttpHelpers definition
+    Description: HTTP helper utilities and constants.
     Copyright 2026 Daniel Wilson
+    SPDX-License-Identifier: MIT
 */
 
 #include <string>

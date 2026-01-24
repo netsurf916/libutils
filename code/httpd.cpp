@@ -1,6 +1,7 @@
 /**
     httpd.cpp : Simple web server implementation
-    Copyright 2021 Daniel Wilson
+    Copyright 2021-2026 Daniel Wilson
+    SPDX-License-Identifier: MIT
 */
 
 #include <utils/Socket.hpp>

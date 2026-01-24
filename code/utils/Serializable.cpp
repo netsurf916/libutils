@@ -1,6 +1,7 @@
 /**
     Serializable.cpp : Serializable interface implementation
-    Copyright 2015-2025 Daniel Wilson
+    Copyright 2015-2026 Daniel Wilson
+    SPDX-License-Identifier: MIT
 */
 
 #include <utils/Serializable.hpp>

@@ -1,6 +1,8 @@
 /**
     IniFile.hpp : INI file definition
-    Copyright 2014-2021 Daniel Wilson
+    Description: INI file parser and writer.
+    Copyright 2014-2026 Daniel Wilson
+    SPDX-License-Identifier: MIT
 */
 
 #pragma once

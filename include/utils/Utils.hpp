@@ -1,6 +1,8 @@
 /**
     Utils.hpp : Main include file for utils namespace
-    Copyright 2017-2021 Daniel Wilson
+    Description: General utility functions.
+    Copyright 2017-2026 Daniel Wilson
+    SPDX-License-Identifier: MIT
 */
 
 #pragma once

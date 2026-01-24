@@ -1,6 +1,8 @@
 /**
     BitMask.hpp : BitMask definition
-    Copyright 2015-2021 Daniel Wilson
+    Description: BitMask utility for flag-style bit operations.
+    Copyright 2015-2026 Daniel Wilson
+    SPDX-License-Identifier: MIT
 */
 
 #pragma once

@@ -1,6 +1,8 @@
 /**
     Window.hpp : Window helper class for ncurses
-    Copyright 2023 Daniel Wilson
+    Description: Curses window wrapper.
+    Copyright 2023-2026 Daniel Wilson
+    SPDX-License-Identifier: MIT
 */
 
 #pragma once
