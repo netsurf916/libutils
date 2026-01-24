@@ -12,6 +12,10 @@
 
 #include <stdint.h>
 
+/**
+ * @brief Suppress unused parameter warnings.
+ * @param a Variable or parameter to mark as unused.
+ */
 #define UNUSED( a ) do { ( void )( a ); } while ( 0 )
 
 #endif // _TYPES_HPP_

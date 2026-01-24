@@ -18,6 +18,12 @@
 namespace utils
 {
     template< typename type >
+    /**
+     * @brief Simple pthread wrapper with a shared context object.
+     * @details Owns a thread function pointer and a shared context passed as
+     *          the argument. The thread is joinable by default.
+     * @note Not safe for concurrent access without external synchronization.
+     */
     class Thread : public Lockable
     {
         private:
@@ -29,6 +35,10 @@ namespace utils
             void                      *( *m_function ) ( void * );
 
         public:
+            /**
+             * @brief Construct a thread wrapper with a function pointer.
+             * @param a_function Thread entry point; must be non-null.
+             */
             Thread( void *( *a_function ) ( void * ) )
             {
                 m_context  = ::std::make_shared< type >();
@@ -40,6 +50,9 @@ namespace utils
                 m_ok = m_ok && ( 0 == pthread_attr_setdetachstate( &m_attributes, PTHREAD_CREATE_JOINABLE ) );
             }
 
+            /**
+             * @brief Destroy the thread wrapper, joining the thread if needed.
+             */
             ~Thread()
             {
                 utils::Lock lock( this );
@@ -47,11 +60,19 @@ namespace utils
                 pthread_attr_destroy( &m_attributes );
             }
 
+            /**
+             * @brief Access the shared context object for the thread.
+             * @return Shared pointer to the context.
+             */
             ::std::shared_ptr< type > &GetContext()
             {
                 return m_context;
             }
 
+            /**
+             * @brief Start the thread.
+             * @return True on success; false if already running or on error.
+             */
             bool Start()
             {
                 utils::Lock lock( this );
@@ -60,6 +81,10 @@ namespace utils
                 return m_ok;
             }
 
+            /**
+             * @brief Join the running thread.
+             * @return True on success; false if not running or on error.
+             */
             bool Join()
             {
                 utils::Lock lock( this );
@@ -68,6 +93,11 @@ namespace utils
                 return m_ok;
             }
 
+            /**
+             * @brief Send SIGKILL to the running thread.
+             * @return True on success; false if not running or on error.
+             * @warning Forcibly terminating a thread can leak resources.
+             */
             bool Kill()
             {
                 utils::Lock lock( this );
@@ -76,6 +106,10 @@ namespace utils
                 return m_ok;
             }
 
+            /**
+             * @brief Request cancellation of the running thread.
+             * @return True on success; false if not running or on error.
+             */
             bool Cancel()
             {
                 utils::Lock lock( this );
