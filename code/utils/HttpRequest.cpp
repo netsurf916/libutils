@@ -429,6 +429,10 @@ namespace utils
                             sendb->Write( ( const uint8_t * )buffer, strlen( buffer ) );
                             sendb->Write( ( const uint8_t * )"\r\n");
                             sendb->Write( ( const uint8_t * )"Content-Length: 0\r\n\r\n" );
+                            while( sendb->Length() && a_socket->Valid() )
+                            {
+                                a_socket->Write( sendb );
+                            }
                             return 416;
                         }
                     }
