@@ -1,6 +1,7 @@
 /**
     Types.cpp : Type size checking implementation
-    Copyright 2015-2021 Daniel Wilson
+    Copyright 2015-2026 Daniel Wilson
+    SPDX-License-Identifier: MIT
 */
 
 #include <utils/Types.hpp>

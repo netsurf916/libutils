@@ -1,6 +1,8 @@
 /**
     LogFile.hpp : Log file definition
-    Copyright 2014-2021 Daniel Wilson
+    Description: Log file writer utility.
+    Copyright 2014-2026 Daniel Wilson
+    SPDX-License-Identifier: MIT
 */
 
 #pragma once

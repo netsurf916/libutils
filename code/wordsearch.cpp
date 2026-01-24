@@ -1,3 +1,8 @@
+/**
+    wordsearch.cpp
+    Copyright 2026 Daniel Wilson
+    SPDX-License-Identifier: MIT
+*/
 #include <ncurses.h>
 #include <stdlib.h>
 #include <time.h>

@@ -1,6 +1,8 @@
 /**
     NetInfo.hpp : NetInfo definition
-    Copyright 2015-2021 Daniel Wilson
+    Description: Network information helper utilities.
+    Copyright 2015-2026 Daniel Wilson
+    SPDX-License-Identifier: MIT
 */
 
 #pragma once

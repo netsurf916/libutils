@@ -1,6 +1,8 @@
 /**
+    Description: Stack/queue hybrid container.
     Staque.cpp : Staque class implementation
-    Copyright 2008-2021 Daniel Wilson
+    Copyright 2008-2026 Daniel Wilson
+    SPDX-License-Identifier: MIT
 */
 
 #pragma once

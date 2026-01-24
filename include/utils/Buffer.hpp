@@ -1,6 +1,8 @@
 /**
     Buffer.hpp : Buffer class implementation
-    Copyright 2014-2021 Daniel Wilson
+    Description: Dynamic byte buffer for serialization and IO.
+    Copyright 2014-2026 Daniel Wilson
+    SPDX-License-Identifier: MIT
 */
 
 #pragma once

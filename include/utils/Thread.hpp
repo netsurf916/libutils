@@ -1,6 +1,8 @@
 /**
     Thread.hpp : Thread class definition
-    Copyright 2015-2021 Daniel Wilson
+    Description: Thread wrapper utilities.
+    Copyright 2015-2026 Daniel Wilson
+    SPDX-License-Identifier: MIT
 */
 
 #include <utils/Lock.hpp>

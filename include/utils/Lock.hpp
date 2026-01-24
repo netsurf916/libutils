@@ -1,6 +1,8 @@
 /**
     Lock.hpp : Lock class definition
-    Copyright 2014-2021 Daniel Wilson
+    Description: Mutex lock wrapper for thread safety.
+    Copyright 2014-2026 Daniel Wilson
+    SPDX-License-Identifier: MIT
 */
 
 #pragma once

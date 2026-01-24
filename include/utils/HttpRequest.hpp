@@ -1,6 +1,8 @@
 /**
     HttpRequest.hpp : HttpRequest definition
-    Copyright 2021 Daniel Wilson
+    Description: HTTP request parsing and representation.
+    Copyright 2021-2026 Daniel Wilson
+    SPDX-License-Identifier: MIT
 */
 
 #include <utils/HttpHelpers.hpp>

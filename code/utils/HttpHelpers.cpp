@@ -1,6 +1,7 @@
     /**
     HttpHelpers.hpp : HttpHelpers implementation
     Copyright 2026 Daniel Wilson
+    SPDX-License-Identifier: MIT
 */
 
 #include <utils/HttpHelpers.hpp>

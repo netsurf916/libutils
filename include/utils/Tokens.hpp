@@ -1,6 +1,8 @@
 /**
+    Description: Tokenization helpers.
     Token.hpp : Token processing helper funcitons
-    Copyright 2014-2021 Daniel Wilson
+    Copyright 2014-2026 Daniel Wilson
+    SPDX-License-Identifier: MIT
 */
 
 #pragma once

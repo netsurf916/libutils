@@ -1,6 +1,8 @@
 /**
     Serializable.hpp : Serializable interface definitions
-    Copyright 2015-2016 Daniel Wilson
+    Description: Serializable interface for reading and writing.
+    Copyright 2015-2026 Daniel Wilson
+    SPDX-License-Identifier: MIT
 */
 
 #pragma once

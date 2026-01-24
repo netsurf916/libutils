@@ -1,6 +1,7 @@
 /**
     Token.cpp : Token processing helper functions
-    Copyright 2014-2021 Daniel Wilson
+    Copyright 2014-2026 Daniel Wilson
+    SPDX-License-Identifier: MIT
 */
 
 #include <utils/Tokens.hpp>

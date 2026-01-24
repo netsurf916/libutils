@@ -1,6 +1,8 @@
 /**
     Socket.hpp : Socket class definition
-    Copyright 2014-2021 Daniel Wilson
+    Description: Socket class for TCP/UDP networking.
+    Copyright 2014-2026 Daniel Wilson
+    SPDX-License-Identifier: MIT
 */
 
 #include <utils/Types.hpp>

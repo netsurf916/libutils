@@ -1,6 +1,8 @@
 /**
     Readable.hpp : Readable interface definitions
-    Copyright 2015-2021 Daniel Wilson
+    Description: Readable interface for serialization.
+    Copyright 2015-2026 Daniel Wilson
+    SPDX-License-Identifier: MIT
 */
 
 #pragma once
