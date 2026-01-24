@@ -383,9 +383,7 @@ namespace utils
             {
                 sendb->Write( ( const uint8_t * )"HTTP/1.1 404 NOT FOUND\r\n" );
                 sendb->Write( ( const uint8_t * )"Connection: Close\r\n" );
-                sendb->Write( ( const uint8_t * )"Content-type: text/plain\r\n" );
-                sendb->Write( ( const uint8_t * )"Content-length: 14\r\n\r\n" );
-                sendb->Write( ( const uint8_t * )"NOT FOUND!\r\n\r\n" );
+                sendb->Write( ( const uint8_t * )"Content-length: 0\r\n\r\n" );
                 while( ( sendb->Length() > 0 ) && a_socket->Valid() )
                 {
                     a_socket->Write( sendb );
@@ -398,9 +396,7 @@ namespace utils
         {
             sendb->Write( ( const uint8_t * )"HTTP/1.1 408 TIMEOUT\r\n" );
             sendb->Write( ( const uint8_t * )"Connection: Close\r\n" );
-            sendb->Write( ( const uint8_t * )"Content-type: text/plain\r\n" );
-            sendb->Write( ( const uint8_t * )"Content-length: 12\r\n\r\n" );
-            sendb->Write( ( const uint8_t * )"TIMEOUT!\r\n\r\n" );
+            sendb->Write( ( const uint8_t * )"Content-Length: 0\r\n\r\n" );
             while( sendb->Length() && a_socket->Valid() )
             {
                 a_socket->Write( sendb );
@@ -418,9 +414,23 @@ namespace utils
                 // Partial content is only allowed for files, not internally generated content
                 if( ( m_method == "GET" ) && ( m_start >= 0 ) )
                 {
-                    if( file->IsFile() && ( m_end < m_start ) )
+                    if( file->IsFile() )
                     {
-                        m_end = file->Size() - 1;
+                        if( m_end <= 0 )
+                        {
+                            m_end = file->Size() - 1;
+                        }
+                        if( ( file->Size() == 0 ) || ( m_end < m_start ) )
+                        {
+                            sendb->Write( ( const uint8_t * )"HTTP/1.1 416 RANGE NOT SATISFIABLE\r\n" );
+                            sendb->Write( ( const uint8_t * )"Connection: Close\r\n" );
+                            sendb->Write( ( const uint8_t * )"Content-Range: bytes */" );
+                            snprintf( buffer, sizeof( buffer ), "%lu", file->Size() );
+                            sendb->Write( ( const uint8_t * )buffer, strlen( buffer ) );
+                            sendb->Write( ( const uint8_t * )"\r\n");
+                            sendb->Write( ( const uint8_t * )"Content-Length: 0\r\n\r\n" );
+                            return 416;
+                        }
                     }
                     else if( m_response.length() > 0 )
                     {
@@ -440,7 +450,14 @@ namespace utils
                     snprintf( buffer, sizeof( buffer ), "%lu", m_end );
                     sendb->Write( ( const uint8_t * )buffer, strlen( buffer ) );
                     sendb->Write( ( const uint8_t * )"/" );
-                    snprintf( buffer, sizeof( buffer ), "%lu", file->Size() );
+                    if( m_response.length() > 0 )
+                    {
+                        snprintf( buffer, sizeof( buffer ), "%lu", m_response.length() );
+                    }
+                    else
+                    {
+                        snprintf( buffer, sizeof( buffer ), "%lu", file->Size() );
+                    }
                     sendb->Write( ( const uint8_t * )buffer, strlen( buffer ) );
                     sendb->Write( ( const uint8_t * )"\r\n" );
                     snprintf( buffer, sizeof( buffer ), "%lu", m_end - m_start + 1 );
@@ -564,9 +581,7 @@ namespace utils
             {
                 sendb->Write( ( const uint8_t * )"HTTP/1.1 404 NOT FOUND\r\n" );
                 sendb->Write( ( const uint8_t * )"Connection: Close\r\n" );
-                sendb->Write( ( const uint8_t * )"Content-type: text/plain\r\n" );
-                sendb->Write( ( const uint8_t * )"Content-length: 14\r\n\r\n" );
-                sendb->Write( ( const uint8_t * )"NOT FOUND!\r\n\r\n" );
+                sendb->Write( ( const uint8_t * )"Content-length: 0\r\n\r\n" );
                 while( sendb->Length() && a_socket->Valid() )
                 {
                     a_socket->Write( sendb );
@@ -582,8 +597,7 @@ namespace utils
         {
             sendb->Write( ( const uint8_t * )"HTTP/1.1 200 OK\r\n" );
             sendb->Write( ( const uint8_t * )"Connection: Close\r\n" );
-            sendb->Write( ( const uint8_t * )"Content-type: text/html\r\n" );
-            sendb->Write( ( const uint8_t * )"\r\n" );
+            sendb->Write( ( const uint8_t * )"Content-type: text/html\r\n\r\n" );
             while( sendb->Length() && a_socket->Valid() )
             {
                 a_socket->Write( sendb );
@@ -647,9 +661,7 @@ namespace utils
             sendb->Write( ( const uint8_t * )"HTTP/1.1 405 METHOD NOT ALLOWED\r\n" );
             sendb->Write( ( const uint8_t * )"Allow: GET, HEAD\r\n" );
             sendb->Write( ( const uint8_t * )"Connection: Close\r\n" );
-            sendb->Write( ( const uint8_t * )"Content-type: text/html\r\n" );
-            sendb->Write( ( const uint8_t * )"Content-length: 59\r\n\r\n" );
-            sendb->Write( ( const uint8_t * )"<html><head><center>Not Allowed!</center></head></html>\r\n\r\n" );
+            sendb->Write( ( const uint8_t * )"Content-length: 0\r\n\r\n" );
             while( sendb->Length() && a_socket->Valid() )
             {
                 a_socket->Write( sendb );
