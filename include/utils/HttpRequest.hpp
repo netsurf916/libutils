@@ -3,6 +3,7 @@
     Copyright 2021 Daniel Wilson
 */
 
+#include <utils/HttpHelpers.hpp>
 #include <utils/Socket.hpp>
 #include <utils/LogFile.hpp>
 #include <utils/KeyValuePair.hpp>
@@ -22,6 +23,8 @@ namespace utils
             ::std::string m_body;
             ::std::string m_addr; // Remote host
             uint32_t      m_port; // Remote port
+            bool          m_sset; // If true, then m_start was assigned a value
+            bool          m_eset; // If true, then m_end was assigned a value
             bool          m_timeout;
             ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > m_meta;
             ::std::string m_response;
@@ -47,19 +50,5 @@ namespace utils
             int32_t Respond( ::std::shared_ptr< Socket > &a_socket, ::std::string &a_fileName, ::std::string &a_type, bool a_listDirs = false );
 
             void Log( LogFile &a_logger );
-    };
-
-    class HttpHelpers
-    {
-        public:
-            static uint8_t       HexToInt( char a_value );
-            static char          IntToHex( uint8_t a_value );
-            static ::std::string HtmlEscape( const ::std::string &a_string );
-            static ::std::string UriEncode( const ::std::string &a_string );
-            static ::std::string UriDecode( const ::std::string &a_string );
-            static uint32_t      UriDecode( ::std::string &a_uri, ::std::string &a_ext );
-            static bool          UriDecode( ::std::string &a_base, ::std::string &a_defaultDoc, ::std::string &a_uri, ::std::string &a_ext, ::std::string &a_defmime );
-            static bool          IsDirectory( ::std::string &a_path );
-            static bool          IsFile     ( ::std::string &a_path );
     };
 }

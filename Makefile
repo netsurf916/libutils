@@ -15,7 +15,7 @@ OBJECTS     = $(SRCDIR)BitMask.o        $(SRCDIR)File.o           $(SRCDIR)Locka
               $(SRCDIR)LogFile.o        $(SRCDIR)NetInfo.o        $(SRCDIR)Tokens.o      \
               $(SRCDIR)Types.o          $(SRCDIR)Buffer.o         $(SRCDIR)IniFile.o     \
               $(SRCDIR)Lock.o           $(SRCDIR)Serializable.o   $(SRCDIR)Socket.o      \
-              $(SRCDIR)HttpRequest.o    $(SRCDIR)Window.o
+              $(SRCDIR)HttpRequest.o    $(SRCDIR)HttpHelpers.o    $(SRCDIR)Window.o
 
 INCDIR      = include/utils/
 HEADERS     = $(INCDIR)BitMask.hpp      $(INCDIR)IniFile.hpp     \
@@ -27,7 +27,8 @@ HEADERS     = $(INCDIR)BitMask.hpp      $(INCDIR)IniFile.hpp     \
               $(INCDIR)Thread.hpp       $(INCDIR)Writable.hpp    \
               $(INCDIR)Utils.hpp        $(INCDIR)File.hpp        \
               $(INCDIR)Lockable.hpp     $(INCDIR)Readable.hpp    \
-              $(INCDIR)HttpRequest.hpp  $(INCDIR)Window.hpp
+              $(INCDIR)HttpRequest.hpp  $(INCDIR)HttpHelpers.hpp \
+              $(INCDIR)Window.hpp
 
 libutils.a: $(OBJECTS) $(HEADERS) Makefile
 	ar rcs libutils.a $(OBJECTS)

@@ -20,6 +20,8 @@ namespace utils
     : m_length ( 0 )
     , m_start  ( -1 )
     , m_end    ( -1 )
+    , m_sset   ( false )
+    , m_eset   ( false )
     , m_timeout( false )
     {}
 
@@ -274,7 +276,7 @@ namespace utils
                                             ++negative;
                                             continue;
                                         }
-                                        if( ( -1 == m_start ) && ( type == TokenType::Number ) )
+                                        if( !m_sset && ( type == TokenType::Number ) )
                                         {
                                             try
                                             {
@@ -284,6 +286,7 @@ namespace utils
                                                     m_start *= -1;
                                                     negative = 0;
                                                 }
+                                                m_sset = true;
                                             }
                                             catch( const ::std::exception &e )
                                             {
@@ -293,11 +296,12 @@ namespace utils
                                                 m_lasterror += e.what();
                                                 m_lasterror += ")";
                                                 m_start = -1;
+                                                m_sset  = false;
                                                 break;
                                             }
                                             continue;
                                         }
-                                        else if( ( -1 == m_end ) && ( type == TokenType::Number ) )
+                                        else if( !m_eset && ( type == TokenType::Number ) )
                                         {
                                             try
                                             {
@@ -307,6 +311,7 @@ namespace utils
                                                     m_end *= -1;
                                                     negative = 0;
                                                 }
+                                                m_eset = true;
                                             }
                                             catch( const ::std::exception &e )
                                             {
@@ -317,6 +322,7 @@ namespace utils
                                                 m_lasterror += ")";
                                                 m_start = -1;
                                                 m_end   = -1;
+                                                m_eset  = false;
                                                 break;
                                             }
                                             continue;
@@ -383,7 +389,7 @@ namespace utils
             {
                 sendb->Write( ( const uint8_t * )"HTTP/1.1 404 NOT FOUND\r\n" );
                 sendb->Write( ( const uint8_t * )"Connection: Close\r\n" );
-                sendb->Write( ( const uint8_t * )"Content-length: 0\r\n\r\n" );
+                sendb->Write( ( const uint8_t * )"Content-Length: 0\r\n\r\n" );
                 while( ( sendb->Length() > 0 ) && a_socket->Valid() )
                 {
                     a_socket->Write( sendb );
@@ -412,11 +418,29 @@ namespace utils
             if( a_type.length() > 0 )
             {
                 // Partial content is only allowed for files, not internally generated content
-                if( ( m_method == "GET" ) && ( m_start >= 0 ) )
+                if( ( m_method == "GET" ) && m_sset )
                 {
                     if( file->IsFile() )
                     {
-                        if( m_end <= 0 )
+                        if( m_start < 0 )
+                        {
+                            int64_t length = -m_start;
+                            if( length < 0 ) // Necessary check in case of min value
+                            {
+                                length = 0;
+                            }
+                            int64_t size = static_cast< int64_t >( file->Size() );
+                            if( size > 0 )
+                            {
+                                m_start = size - length;
+                                if( m_start < 0 )
+                                {
+                                    m_start = 0;
+                                }
+                                m_end = size - 1;
+                            }
+                        }
+                        if( !m_eset || ( m_end < 0 ) )
                         {
                             m_end = file->Size() - 1;
                         }
@@ -438,16 +462,51 @@ namespace utils
                     }
                     else if( m_response.length() > 0 )
                     {
-                        m_start = 0;
-                        m_end   = m_response.length() - 1;
+                        if( m_start < 0 )
+                        {
+                            int64_t length = -m_start;
+                            if( length < 0 ) // Necessary check in case of min value
+                            {
+                                length = 0;
+                            }
+                            int64_t size = static_cast< int64_t >( m_response.length() );
+                            if( size > 0 )
+                            {
+                                m_start = size - length;
+                                if( m_start < 0 )
+                                {
+                                    m_start = 0;
+                                }
+                                m_end = size - 1;
+                            }
+                        }
+                        if( !m_eset || ( m_end < 0 ) )
+                        {
+                            m_end = m_response.length() - 1;
+                        }
+                        if( ( m_response.length() == 0 ) || ( m_end < m_start ) )
+                        {
+                            sendb->Write( ( const uint8_t * )"HTTP/1.1 416 RANGE NOT SATISFIABLE\r\n" );
+                            sendb->Write( ( const uint8_t * )"Connection: Close\r\n" );
+                            sendb->Write( ( const uint8_t * )"Content-Range: bytes */" );
+                            snprintf( buffer, sizeof( buffer ), "%lu", m_response.length() );
+                            sendb->Write( ( const uint8_t * )buffer, strlen( buffer ) );
+                            sendb->Write( ( const uint8_t * )"\r\n");
+                            sendb->Write( ( const uint8_t * )"Content-Length: 0\r\n\r\n" );
+                            while( sendb->Length() && a_socket->Valid() )
+                            {
+                                a_socket->Write( sendb );
+                            }
+                            return 416;
+                        }
                     }
                     sendb->Write( ( const uint8_t * )"HTTP/1.1 206 PARTIAL CONTENT\r\n" );
                     sendb->Write( ( const uint8_t * )"Connection: Close\r\n" );
-                    sendb->Write( ( const uint8_t * )"Content-type: " );
+                    sendb->Write( ( const uint8_t * )"Content-Type: " );
                     sendb->Write( ( const uint8_t * )a_type.c_str(), a_type.length() );
                     sendb->Write( ( const uint8_t * )"\r\n" );
-                    sendb->Write( ( const uint8_t * )"Accept-ranges: bytes\r\n" );
-                    sendb->Write( ( const uint8_t * )"Content-range: bytes " );
+                    sendb->Write( ( const uint8_t * )"Accept-Ranges: bytes\r\n" );
+                    sendb->Write( ( const uint8_t * )"Content-Range: bytes " );
                     snprintf( buffer, sizeof( buffer ), "%lu", m_start );
                     sendb->Write( ( const uint8_t * )buffer, strlen( buffer ) );
                     sendb->Write( ( const uint8_t * )"-" );
@@ -465,7 +524,7 @@ namespace utils
                     sendb->Write( ( const uint8_t * )buffer, strlen( buffer ) );
                     sendb->Write( ( const uint8_t * )"\r\n" );
                     snprintf( buffer, sizeof( buffer ), "%lu", m_end - m_start + 1 );
-                    sendb->Write( ( const uint8_t * )"Content-length: " );
+                    sendb->Write( ( const uint8_t * )"Content-Length: " );
                     sendb->Write( ( const uint8_t * )buffer, strlen( buffer ) );
                     sendb->Write( ( const uint8_t * )"\r\n\r\n", 4 );
                     while( sendb->Length() && a_socket->Valid() )
@@ -525,11 +584,11 @@ namespace utils
                     }
                     sendb->Write( ( const uint8_t * )"HTTP/1.1 200 OK\r\n" );
                     sendb->Write( ( const uint8_t * )"Connection: Close\r\n" );
-                    sendb->Write( ( const uint8_t * )"Content-type: " );
+                    sendb->Write( ( const uint8_t * )"Content-Type: " );
                     sendb->Write( ( const uint8_t * )a_type.c_str(), a_type.length() );
                     sendb->Write( ( const uint8_t * )"\r\n" );
-                    sendb->Write( ( const uint8_t * )"Accept-ranges: bytes\r\n" );
-                    sendb->Write( ( const uint8_t * )"Content-length: " );
+                    sendb->Write( ( const uint8_t * )"Accept-Ranges: bytes\r\n" );
+                    sendb->Write( ( const uint8_t * )"Content-Length: " );
                     sendb->Write( ( const uint8_t * )buffer, strlen( buffer ) );
                     sendb->Write( ( const uint8_t * )"\r\n\r\n" );
                     while( sendb->Length() && a_socket->Valid() )
@@ -585,7 +644,7 @@ namespace utils
             {
                 sendb->Write( ( const uint8_t * )"HTTP/1.1 404 NOT FOUND\r\n" );
                 sendb->Write( ( const uint8_t * )"Connection: Close\r\n" );
-                sendb->Write( ( const uint8_t * )"Content-length: 0\r\n\r\n" );
+                sendb->Write( ( const uint8_t * )"Content-Length: 0\r\n\r\n" );
                 while( sendb->Length() && a_socket->Valid() )
                 {
                     a_socket->Write( sendb );
@@ -601,7 +660,7 @@ namespace utils
         {
             sendb->Write( ( const uint8_t * )"HTTP/1.1 200 OK\r\n" );
             sendb->Write( ( const uint8_t * )"Connection: Close\r\n" );
-            sendb->Write( ( const uint8_t * )"Content-type: text/html\r\n\r\n" );
+            sendb->Write( ( const uint8_t * )"Content-Type: text/html\r\n\r\n" );
             while( sendb->Length() && a_socket->Valid() )
             {
                 a_socket->Write( sendb );
@@ -665,7 +724,7 @@ namespace utils
             sendb->Write( ( const uint8_t * )"HTTP/1.1 405 METHOD NOT ALLOWED\r\n" );
             sendb->Write( ( const uint8_t * )"Allow: GET, HEAD\r\n" );
             sendb->Write( ( const uint8_t * )"Connection: Close\r\n" );
-            sendb->Write( ( const uint8_t * )"Content-length: 0\r\n\r\n" );
+            sendb->Write( ( const uint8_t * )"Content-Length: 0\r\n\r\n" );
             while( sendb->Length() && a_socket->Valid() )
             {
                 a_socket->Write( sendb );
@@ -754,241 +813,5 @@ namespace utils
             a_logger.Log( "Last error = ", false, false );
             a_logger.Log( m_lasterror.c_str(), false, true );
         }
-    }
-
-    uint8_t HttpHelpers::HexToInt( char a_value )
-    {
-        if( ( a_value >= '0' ) && ( a_value <= '9' ) )
-        {
-            return ( a_value - '0' );
-        }
-        if( ( a_value >= 'A' ) && ( a_value <= 'Z' ) )
-        {
-            a_value += ( 'a' - 'A' );
-        }
-        switch( a_value )
-        {
-            case 'a':
-                return 10;
-            case 'b':
-                return 11;
-            case 'c':
-                return 12;
-            case 'd':
-                return 13;
-            case 'e':
-                return 14;
-            case 'f':
-                return 15;
-            default:
-                return 128;
-        }
-    }
-
-    char HttpHelpers::IntToHex( uint8_t a_value )
-    {
-        const char hex[] = "0123456789ABCDEF";
-        return hex[ a_value & 0x0F ];
-    }
-
-    ::std::string HttpHelpers::HtmlEscape( const ::std::string &a_string )
-    {
-        ::std::string newString;
-
-        for( uint32_t i = 0; i < a_string.length(); ++i )
-        {
-            switch( a_string[ i ] )
-            {
-                case '&': newString += "&amp;";
-                    break;
-                case '<': newString += "&lt;";
-                    break;
-                case '>': newString += "&gt;";
-                    break;
-                case '"': newString += "&quot;";
-                    break;
-                case '\'': newString += "&#39;";
-                    break;
-                default: newString += a_string[ i ];
-                    break;
-            }
-        }
-
-        return newString;
-    }
-
-
-    ::std::string HttpHelpers::UriEncode( const ::std::string &a_string )
-    {
-        ::std::string newString;
-
-        for( uint32_t i = 0; i < a_string.length(); ++i )
-        {
-            if( !Tokens::IsLetter( ( uint8_t )a_string[ i ] ) )
-            {
-                newString += "%";
-                newString += HttpHelpers::IntToHex( a_string[ i ] >>   4 );
-                newString += HttpHelpers::IntToHex( a_string[ i ] & 0x0F );
-            }
-            else
-            {
-                newString += a_string[ i ];
-            }
-        }
-
-        return newString;
-    }
-
-    ::std::string HttpHelpers::UriDecode( const ::std::string &a_string )
-    {
-        ::std::string newString;
-
-        for( uint32_t i = 0; i < a_string.length(); ++i )
-        {
-            switch( a_string[ i ] )
-            {
-                case '%':
-                    if( i < ( uint32_t )( a_string.length() - 2 ) )
-                    {
-                        char a = HttpHelpers::HexToInt( a_string[ i + 1 ] );
-                        char b = HttpHelpers::HexToInt( a_string[ i + 2 ] );
-                        if( ( a <= 0x0F ) && ( b <= 0x0F ) )
-                        {
-                            newString += ( char )( ( a << 4 ) & 0xF0 ) +
-                                        ( char )( ( b      ) & 0x0F );
-                            i += 2;
-                        }
-                    }
-                    break;
-                default:
-                    newString += a_string[ i ];
-                    break;
-            }
-        }
-
-        return newString;
-    }
-
-    uint32_t HttpHelpers::UriDecode( ::std::string &a_uri, ::std::string &a_ext )
-    {
-        ::std::string newUri;
-        uint32_t changes = 0;
-
-        for( uint32_t i = 0; i < a_uri.length(); ++i )
-        {
-            switch( a_uri[ i ] )
-            {
-                case '/':
-                case '\\':
-                    a_ext.clear();
-                    if( ( newUri.length() > 0 ) && ( '/' != newUri[ newUri.length() - 1 ] ) )
-                    {
-                        newUri += '/';
-                    }
-                    break;
-                case '.':
-                    a_ext = '.';
-                    if( ( newUri.length() > 0 ) && ( '.' != newUri[ newUri.length() - 1 ] ) )
-                    {
-                        newUri += '.';
-                    }
-                    break;
-                case '%':
-                    if( i < ( uint32_t )( a_uri.length() - 2 ) )
-                    {
-                        char a = HttpHelpers::HexToInt( a_uri[ i + 1 ] );
-                        char b = HttpHelpers::HexToInt( a_uri[ i + 2 ] );
-                        if( ( a <= 0x0F ) && ( b <= 0x0F ) )
-                        {
-                            newUri += ( char )( ( a << 4 ) & 0xF0 ) +
-                                      ( char )( ( b      ) & 0x0F );
-                            ++changes;
-                            i += 2;
-                        }
-                    }
-                    break;
-                default:
-                    newUri += a_uri[ i ];
-                    if( a_ext.length() > 0 )
-                    {
-                        a_ext += a_uri[ i ];
-                    }
-                    break;
-            }
-        }
-        Tokens::MakeLower( a_ext );
-        a_uri = newUri;
-
-        return changes;
-    }
-
-    bool HttpHelpers::UriDecode( ::std::string &a_base, ::std::string &a_defaultDoc, ::std::string &a_uri, ::std::string &a_ext, ::std::string &a_defmime )
-    {
-        while( HttpHelpers::UriDecode( a_uri, a_ext ) != 0 );
-
-        ::std::string newUri( a_base );
-        if( ( newUri.length() > 0 ) && ( '/' != newUri[ newUri.length() - 1 ] ) )
-        {
-            newUri += '/';
-        }
-        newUri += a_uri;
-        bool isDir = IsDirectory( newUri );
-        if( isDir && ( newUri.length() > 0 ) && ( '/' != newUri[ newUri.length() - 1 ] ) )
-        {
-            newUri += '/';
-        }
-
-        // If this is a directory, check if the default document exists
-        if( isDir || ( a_ext.length() == 0 ) )
-        {
-            ::std::string newDefUri( newUri );
-            while( HttpHelpers::UriDecode( a_defaultDoc, a_ext ) != 0 );
-            newDefUri += a_defaultDoc;
-
-            // Use the default document if it exists
-            if( IsFile( newDefUri ) )
-            {
-                newUri = newDefUri;
-            }
-            else
-            {
-                // Clear the extension in the case the default document isn't used
-                a_ext.clear();
-                // Treating it like a directory either way at this point
-                isDir = true;
-            }
-        }
-
-        if( a_ext.length() == 0 )
-        {
-            a_ext = a_defmime;
-        }
-        a_uri = newUri;
-
-        if( a_uri.length() > 0 )
-        {
-            return true;
-        }
-        return false;
-    }
-
-    bool HttpHelpers::IsDirectory( ::std::string &a_path )
-    {
-        struct stat st;
-        if( stat( a_path.c_str(), &st ) != 0 )
-        {
-            return false;
-        }
-        return S_ISDIR( st.st_mode );
-    }
-
-    bool HttpHelpers::IsFile( ::std::string &a_path )
-    {
-        struct stat st;
-        if( stat( a_path.c_str(), &st ) != 0 )
-        {
-            return false;
-        }
-        return S_ISREG( st.st_mode );
     }
 }
