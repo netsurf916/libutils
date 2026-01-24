@@ -9,8 +9,8 @@
 #include <utils/File.hpp>
 #include <utils/Thread.hpp>
 #include <unistd.h>
-#include <sys/stat.h>
 #include <dirent.h>
+#include <string.h>
 
 #define MAXBUFFERLEN 65536
 

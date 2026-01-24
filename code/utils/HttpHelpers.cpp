@@ -4,9 +4,9 @@
 */
 
 #include <utils/HttpHelpers.hpp>
+#include <utils/Tokens.hpp>
 #include <unistd.h>
 #include <sys/stat.h>
-#include <dirent.h>
 
 #define MAXBUFFERLEN 65536
 

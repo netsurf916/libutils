@@ -7,7 +7,7 @@
 #include <utils/Socket.hpp>
 #include <utils/LogFile.hpp>
 #include <utils/KeyValuePair.hpp>
-#include <string.h>
+#include <string>
 
 namespace utils
 {

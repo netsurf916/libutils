@@ -5,7 +5,7 @@ CFLAGS      = -O2 -pedantic \
 CLIBFLAGS   = -fPIC
 CXXFLAGS    = -std=c++23
 
-INCLUDES    = -I./include/ -I/usr/local/include/
+INCLUDES    = -I./include/
 
 LIBS        = -lutils -lpthread -lncurses
 LIBPATHS    = -L./ -L/usr/local/lib/
@@ -47,4 +47,3 @@ clean:
 	-rm $(OBJECTS)
 	-rm vic
 	-rm httpd
-

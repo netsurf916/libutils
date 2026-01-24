@@ -332,4 +332,3 @@ void *ProcessClient( void *a_clientCtx )
     context->running = false;
     pthread_exit( nullptr );
 }
-
