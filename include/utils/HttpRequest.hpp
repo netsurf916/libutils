@@ -5,10 +5,16 @@
     SPDX-License-Identifier: MIT
 */
 
+#pragma once
+
+#ifndef _HTTPREQUEST_HPP_
+#define _HTTPREQUEST_HPP_
+
 #include <utils/HttpHelpers.hpp>
-#include <utils/Socket.hpp>
-#include <utils/LogFile.hpp>
 #include <utils/KeyValuePair.hpp>
+#include <utils/LogFile.hpp>
+#include <utils/Socket.hpp>
+#include <utils/Types.hpp>
 #include <string>
 
 namespace utils
@@ -135,3 +141,5 @@ namespace utils
             void Log( LogFile &a_logger );
     };
 }
+
+#endif // _HTTPREQUEST_HPP_

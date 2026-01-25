@@ -10,7 +10,11 @@
 #ifndef _FILE_HPP_
 #define _FILE_HPP_
 
-#include <utils/Utils.hpp>
+#include <utils/Buffer.hpp>
+#include <utils/Readable.hpp>
+#include <utils/Types.hpp>
+#include <utils/Writable.hpp>
+#include <memory>
 #include <string>
 #include <stdio.h>
 

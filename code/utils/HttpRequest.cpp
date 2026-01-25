@@ -5,13 +5,11 @@
 */
 
 #include <utils/HttpRequest.hpp>
-#include <utils/Tokens.hpp>
-#include <utils/IniFile.hpp>
 #include <utils/File.hpp>
-#include <utils/Thread.hpp>
-#include <unistd.h>
+#include <utils/Tokens.hpp>
 #include <dirent.h>
 #include <string.h>
+#include <unistd.h>
 
 #define MAXBUFFERLEN 65536
 
