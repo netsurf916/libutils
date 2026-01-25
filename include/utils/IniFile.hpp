@@ -34,6 +34,7 @@ namespace utils
              * @brief Construct an empty INI section.
              */
             IniFileHeading();
+
             /**
              * @brief Destroy the section and its entries.
              */
@@ -45,11 +46,13 @@ namespace utils
              * @return Mutable reference to the name string.
              */
             ::std::string                                                     &Name();
+
             /**
              * @brief Access the head of the entries list.
              * @return Shared pointer to the first entry.
              */
             ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > &Entries();
+
             /**
              * @brief Access the next section in the linked list.
              * @return Shared pointer to the next section.
@@ -63,6 +66,7 @@ namespace utils
              * @return True if the value was set; false on invalid input.
              */
             bool SetValue( const char *a_key, const char *a_value );
+
             /**
              * @brief Retrieve a key/value pair from this section.
              * @param a_key Key name; must be non-null.
@@ -95,6 +99,7 @@ namespace utils
              * @param a_file Path to the INI file; must be non-null.
              */
             IniFile( const char *a_file );
+
             /**
              * @brief Destroy the INI file wrapper.
              */
@@ -108,6 +113,7 @@ namespace utils
              * @return True if the value was found; false otherwise.
              */
             bool ReadValue ( const char *a_heading, const char *a_name, ::std::string &a_value );
+
             /**
              * @brief Write a value to a section.
              * @param a_heading Section name; must be non-null.

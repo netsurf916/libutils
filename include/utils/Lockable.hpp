@@ -36,6 +36,7 @@ namespace utils
              * @note Intended for use by utils::Lock.
              */
             void Lock() noexcept;
+
             /**
              * @brief Release the recursive mutex.
              * @note Intended for use by utils::Lock.

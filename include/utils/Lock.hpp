@@ -33,6 +33,7 @@ namespace utils
              * @param a_object Lockable instance to guard; must be non-null.
              */
             Lock( Lockable *a_object );
+
             /**
              * @brief Release the lock held on the Lockable object.
              */

@@ -39,12 +39,14 @@ namespace utils
              * @param a_size Capacity in bytes. If allocation fails, size becomes 0.
              */
             Buffer( uint32_t a_size = 65536 );
+
             /**
              * @brief Copy-construct a buffer and its contents.
              * @param a_value Source buffer to copy.
              * @note The copy captures current contents and cursor positions.
              */
             Buffer( Buffer &a_value );
+
             /**
              * @brief Destroy the buffer and release memory.
              */
@@ -52,11 +54,13 @@ namespace utils
 
         public:
             // Read functions
+
             /**
              * @brief Check if the buffer can be read from.
              * @return True if readable state is available; false otherwise.
              */
             bool     IsReadable() noexcept final;
+
             /**
              * @brief Read a single byte from the buffer.
              * @param a_value Output byte to receive the data.
@@ -64,6 +68,7 @@ namespace utils
              * @return True if a byte was read; false if the buffer is empty.
              */
             bool     Read( uint8_t &a_value, bool a_block = false ) noexcept final;
+
             /**
              * @brief Read up to a_length bytes from the buffer.
              * @param a_value Destination buffer; must be non-null when a_length > 0.
@@ -72,12 +77,14 @@ namespace utils
              * @return Number of bytes actually read; 0 if empty or invalid length.
              */
             uint32_t Read( uint8_t *a_value, uint32_t a_length, bool a_block = false ) noexcept final;
+
             /**
              * @brief Peek at the next byte without consuming it.
              * @param a_value Output byte to receive the peeked value.
              * @return True if a byte is available; false if the buffer is empty.
              */
             bool     Peek( uint8_t &a_value ) noexcept final;
+
             /**
              * @brief Peek at a byte at an offset from the current read position.
              * @param a_value Output byte to receive the peeked value.
@@ -85,6 +92,7 @@ namespace utils
              * @return True if the index is valid; false if out of range.
              */
             bool     Peek( uint8_t &a_value, uint32_t a_index ) noexcept;
+
             /**
              * @brief Peek up to a_length bytes without consuming them.
              * @param a_value Destination buffer; must be non-null when a_length > 0.
@@ -94,17 +102,20 @@ namespace utils
             uint32_t Peek( uint8_t *a_value, uint32_t a_length ) noexcept final;
 
             // Write functions
+
             /**
              * @brief Check if the buffer can be written to.
              * @return True if writable state is available; false otherwise.
              */
             bool     IsWritable() noexcept final;
+
             /**
              * @brief Write a single byte into the buffer.
              * @param a_value Byte to write.
              * @return True if the byte was written; false if buffer is full.
              */
             bool     Write( const uint8_t &a_value ) noexcept final;
+
             /**
              * @brief Write bytes into the buffer.
              * @param a_value Source buffer; must be non-null when a_length > 0.
@@ -125,6 +136,7 @@ namespace utils
              * @return Pointer to readable data, or nullptr if empty.
              */
             operator const void  *();
+
             /**
              * @brief Convert to a byte pointer for the readable region.
              * @return Pointer to readable data, or nullptr if empty.
@@ -136,32 +148,38 @@ namespace utils
              * @return Capacity in bytes.
              */
             uint32_t Size();
+
             /**
              * @brief Get current readable length.
              * @return Number of bytes currently available for reading.
              */
             uint32_t Length();
+
             /**
              * @brief Get available space for writing.
              * @return Number of bytes that can be written before full.
              */
             uint32_t Space();
+
             /**
              * @brief Clear the buffer and reset cursors.
              */
             void     Clear();
+
             /**
              * @brief Trim bytes from the beginning of the buffer.
              * @param a_count Number of bytes to remove; defaults to all.
              * @note Trimming more than length clears the buffer.
              */
             void     TrimLeft ( uint32_t a_count = 0xFFFFFFFF );
+
             /**
              * @brief Trim bytes from the end of the buffer.
              * @param a_count Number of bytes to remove; defaults to all.
              * @note Trimming more than length clears the buffer.
              */
             void     TrimRight( uint32_t a_count = 0xFFFFFFFF );
+
             /**
              * @brief Compact the buffer so readable data starts at the base.
              * @note This does not change the readable data, only its position.
@@ -176,6 +194,7 @@ namespace utils
              * @return True if the sequence is found; false otherwise.
              */
             bool Contains( const char  *a_value, uint32_t a_length = 0 );
+
             /**
              * @brief Check whether the buffer contains a byte sequence.
              * @param a_value Sequence to search for; must be non-null.

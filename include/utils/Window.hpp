@@ -17,6 +17,7 @@ namespace utils
     namespace ColorPairs
     {
         // The ncurses color pairs can't start with 0
+
         /**
          * @brief Predefined ncurses color pair identifiers.
          */
@@ -71,6 +72,7 @@ namespace utils
     {
         private:
             int row, col;
+
             /**
              * @brief Update cursor position based on direction.
              * @param a_dir Direction to move after writing.
@@ -82,6 +84,7 @@ namespace utils
              * @brief Construct a window wrapper.
              */
             Window();
+
             /**
              * @brief Destroy the window wrapper.
              */
@@ -93,6 +96,7 @@ namespace utils
              * @param a_col Output column count.
              */
             void GetMax( int &a_row, int &a_col );
+
             /**
              * @brief Put a character at the current position.
              * @param a_ch Character to write.
@@ -100,6 +104,7 @@ namespace utils
              * @param a_dir Direction to move after writing.
              */
             void Put( char a_ch, int a_color = ColorPair::WhiteOnBlack, int a_dir = TextDirection::Right );
+
             /**
              * @brief Put a character at a random position.
              * @param a_ch Character to write.
@@ -107,6 +112,7 @@ namespace utils
              * @param a_dir Direction to move after writing.
              */
             void PutRND( char a_ch, int a_color = ColorPair::WhiteOnBlack, int a_dir = TextDirection::Right );
+
             /**
              * @brief Put a string at a random position.
              * @param a_str Null-terminated string to write; must be non-null.

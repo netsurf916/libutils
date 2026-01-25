@@ -47,11 +47,13 @@ namespace utils
              * @brief Construct an empty NetInfo node.
              */
             NetInfo();
+
             /**
              * @brief Construct from a system ifaddrs structure.
              * @param a_info Pointer to ifaddrs entry; must be non-null.
              */
             NetInfo( struct ifaddrs *a_info );
+
             /**
              * @brief Destroy the NetInfo node.
              */
@@ -62,16 +64,19 @@ namespace utils
              * @return Mutable reference to the name.
              */
             ::std::string &Name();
+
             /**
              * @brief Access the interface address string.
              * @return Mutable reference to the address.
              */
             ::std::string &Address();
+
             /**
              * @brief Access the interface netmask string.
              * @return Mutable reference to the netmask.
              */
             ::std::string &NetMask();
+
             /**
              * @brief Access the broadcast address string.
              * @return Mutable reference to the broadcast address.
@@ -83,16 +88,19 @@ namespace utils
              * @return True if IPv4 is present.
              */
             bool IsIPv4();
+
             /**
              * @brief Check if the interface has an IPv6 address.
              * @return True if IPv6 is present.
              */
             bool IsIPv6();
+
             /**
              * @brief Check if the interface is a loopback device.
              * @return True if loopback.
              */
             bool IsLoopback();
+
             /**
              * @brief Check if the interface is up.
              * @return True if marked up.
@@ -104,6 +112,7 @@ namespace utils
              * @return Shared pointer to the previous node.
              */
             ::std::shared_ptr< NetInfo > &Prev();
+
             /**
              * @brief Access the next node in the list.
              * @return Shared pointer to the next node.

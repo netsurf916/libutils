@@ -45,6 +45,7 @@ namespace utils
              * @brief Construct a new empty request.
              */
             HttpRequest();
+
             /**
              * @brief Destroy the request and clear stored state.
              */
@@ -60,41 +61,49 @@ namespace utils
              * @return Mutable reference to the URI string.
              */
             ::std::string &Uri();
+
             /**
              * @brief Access the request method.
              * @return Mutable reference to the method string.
              */
             ::std::string &Method();
+
             /**
              * @brief Access the HTTP version string.
              * @return Mutable reference to the version string.
              */
             ::std::string &Version();
+
             /**
              * @brief Access the metadata header list.
              * @return Shared pointer to key/value metadata storage.
              */
             ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > &Meta();
+
             /**
              * @brief Retrieve the Host header value.
              * @return Host header value, or empty if not present.
              */
             ::std::string  Host();
+
             /**
              * @brief Access the response string buffer.
              * @return Mutable reference to the response.
              */
             ::std::string &Response();
+
             /**
              * @brief Access the remote address string.
              * @return Mutable reference to the remote address.
              */
             ::std::string &RemoteAddress();
+
             /**
              * @brief Access the remote port.
              * @return Mutable reference to the remote port value.
              */
             uint32_t      &RemotePort();
+
             /**
              * @brief Retrieve the last error message.
              * @return Last error string (may be empty).
@@ -108,6 +117,7 @@ namespace utils
              * @note The request may be partial if a timeout occurs.
              */
             bool    Read( ::std::shared_ptr< Socket > &a_socket );
+
             /**
              * @brief Send a file response for the current request.
              * @param a_socket Socket to write to; must be non-null and connected.

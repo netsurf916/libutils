@@ -20,6 +20,7 @@
 namespace utils
 {
     template< typename key_type, typename value_type >
+
     /**
      * @brief Simple linked key/value pair node.
      * @details Stores a key, a value, and a next pointer to form a linked list.

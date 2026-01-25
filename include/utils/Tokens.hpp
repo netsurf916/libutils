@@ -211,6 +211,7 @@ namespace utils
              * @return TokenType indicating what was read or NotFound.
              */
             static TokenType GetToken( Readable &a_input, ::std::string &a_token, char a_delim = 0 );
+
             /**
              * @brief Read a line from a readable stream into a string.
              * @param a_input Input stream to read from.
@@ -218,6 +219,7 @@ namespace utils
              * @return TokenType::Line on success, or NotFound on EOF/error.
              */
             static TokenType GetLine ( Readable &a_input, ::std::string &a_token );
+
             /**
              * @brief Read a line from a readable stream into a writable stream.
              * @param a_input Input stream to read from.

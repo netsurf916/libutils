@@ -52,12 +52,14 @@ namespace utils
              * @return Type identifier byte.
              */
             virtual uint8_t Type() = 0;
+
             /**
              * @brief Serialize this object to a writable stream.
              * @param a_out Output stream to write to.
              * @return True on success; false on write failure.
              */
             virtual bool    Serialize  ( Writable &a_out ) = 0;
+
             /**
              * @brief Deserialize this object from a readable stream.
              * @param a_in Input stream to read from.
@@ -77,6 +79,7 @@ namespace utils
              * @return True on success; false on write failure.
              */
             bool SerializeType  ( Writable &a_out );
+
             /**
              * @brief Read and validate the type tag from the input stream.
              * @param a_in Input stream to read from.
@@ -86,48 +89,56 @@ namespace utils
 
         public:
             // Serialization helper functions
+
             /**
              * @brief Convert an 8-bit value to network byte order.
              * @param a_value Host-order value.
              * @return Network-order value.
              */
             static uint8_t  ToNetwork  ( uint8_t  a_value );
+
             /**
              * @brief Convert an 8-bit value from network byte order.
              * @param a_value Network-order value.
              * @return Host-order value.
              */
             static uint8_t  FromNetwork( uint8_t  a_value );
+
             /**
              * @brief Convert a 16-bit value to network byte order.
              * @param a_value Host-order value.
              * @return Network-order value.
              */
             static uint16_t ToNetwork  ( uint16_t a_value );
+
             /**
              * @brief Convert a 16-bit value from network byte order.
              * @param a_value Network-order value.
              * @return Host-order value.
              */
             static uint16_t FromNetwork( uint16_t a_value );
+
             /**
              * @brief Convert a 32-bit value to network byte order.
              * @param a_value Host-order value.
              * @return Network-order value.
              */
             static uint32_t ToNetwork  ( uint32_t a_value );
+
             /**
              * @brief Convert a 32-bit value from network byte order.
              * @param a_value Network-order value.
              * @return Host-order value.
              */
             static uint32_t FromNetwork( uint32_t a_value );
+
             /**
              * @brief Convert a 64-bit value to network byte order.
              * @param a_value Host-order value.
              * @return Network-order value.
              */
             static uint64_t ToNetwork  ( uint64_t a_value );
+
             /**
              * @brief Convert a 64-bit value from network byte order.
              * @param a_value Network-order value.
