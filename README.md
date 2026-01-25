@@ -68,7 +68,7 @@ make libutils.a   # build the static library
 make httpd        # build the HTTP server example
 make vic          # build the VIC cipher example
 make wordsearch   # build the ncurses wordsearch demo
-make all          # build the default examples (vic, httpd)
+make all          # build the examples (vic, httpd, wordsearch)
 ```
 
 ### Build outputs

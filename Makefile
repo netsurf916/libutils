@@ -40,7 +40,7 @@ libutils.a: $(OBJECTS) $(HEADERS) Makefile
 %: code/%.cpp $(HEADERS) libutils.a Makefile
 	$(CXX) $(CFLAGS) $(CXXFLAGS) $(INCLUDES) -o $@ $< $(LIBPATHS) $(LIBS)
 
-all: vic httpd
+all: vic httpd wordsearch
 
 clean:
 	-rm libutils.a
