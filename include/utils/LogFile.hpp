@@ -41,6 +41,7 @@ namespace utils
              * @return True on success; false on write errors.
              */
             bool Log( ::std::string  &a_message, bool a_timestamp = true, bool a_newline = true );
+
             /**
              * @brief Log a C-string message.
              * @param a_value Message to log; must be non-null.
@@ -49,6 +50,7 @@ namespace utils
              * @return True on success; false on write errors.
              */
             bool Log( const char     *a_value,   bool a_timestamp = true, bool a_newline = true );
+
             /**
              * @brief Log a signed integer value.
              * @param a_value Integer value to log.
@@ -57,6 +59,7 @@ namespace utils
              * @return True on success; false on write errors.
              */
             bool Log( const int32_t  &a_value,   bool a_timestamp = true, bool a_newline = true );
+
             /**
              * @brief Log an unsigned integer value.
              * @param a_value Integer value to log.

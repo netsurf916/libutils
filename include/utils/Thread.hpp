@@ -18,6 +18,7 @@
 namespace utils
 {
     template< typename type >
+
     /**
      * @brief Simple pthread wrapper with a shared context object.
      * @details Owns a thread function pointer and a shared context passed as

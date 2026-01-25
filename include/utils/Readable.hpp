@@ -27,6 +27,7 @@ namespace utils
              * @return True if read operations can proceed; false otherwise.
              */
             virtual bool     IsReadable() noexcept = 0;
+
             /**
              * @brief Read a single byte from the source.
              * @param a_value Output byte to receive data.
@@ -34,6 +35,7 @@ namespace utils
              * @return True if a byte was read; false on EOF or error.
              */
             virtual bool     Read( uint8_t &a_value, bool a_block = true ) noexcept = 0;
+
             /**
              * @brief Read up to a_length bytes from the source.
              * @param a_value Destination buffer; must be non-null when a_length > 0.
@@ -42,12 +44,14 @@ namespace utils
              * @return Number of bytes actually read; 0 on EOF or error.
              */
             virtual uint32_t Read( uint8_t *a_value, uint32_t a_length, bool a_block = true ) noexcept = 0;
+
             /**
              * @brief Peek the next byte without consuming it.
              * @param a_value Output byte to receive the data.
              * @return True if a byte is available; false otherwise.
              */
             virtual bool     Peek( uint8_t &a_value ) noexcept = 0;
+
             /**
              * @brief Peek up to a_length bytes without consuming them.
              * @param a_value Destination buffer; must be non-null when a_length > 0.

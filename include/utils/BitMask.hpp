@@ -32,16 +32,19 @@ namespace utils
              * @brief Create an empty bitmask with all bits cleared.
              */
             BitMask();
+
             /**
              * @brief Create a bitmask initialized to a specific value.
              * @param a_value Initial 32-bit mask value.
              */
             BitMask( uint32_t a_value );
+
             /**
              * @brief Copy-construct a bitmask from another instance.
              * @param a_bitMask Source bitmask to copy from.
              */
             BitMask( const utils::BitMask &a_bitMask );
+
             /**
              * @brief Destroy the bitmask instance.
              */
@@ -52,18 +55,21 @@ namespace utils
              * @return Current mask value.
              */
             operator uint32_t();
+
             /**
              * @brief Assign a raw 32-bit mask value.
              * @param a_bitMask New mask value to store.
              * @return Reference to this instance.
              */
             BitMask &operator = ( uint32_t a_bitMask );
+
             /**
              * @brief Assign from another bitmask instance.
              * @param a_bitMask Source bitmask to copy from.
              * @return Reference to this instance.
              */
             BitMask &operator = ( BitMask &a_bitMask );
+
             /**
              * @brief Query whether a bit is set.
              * @param a_bit Bit index (0-31).
@@ -71,6 +77,7 @@ namespace utils
              * @note This operator does not lock; synchronize externally if needed.
              */
             bool     operator []( uint8_t a_bit );
+
             /**
              * @brief Set or clear a specific bit.
              * @param a_bit Bit index (0-31).
@@ -78,6 +85,7 @@ namespace utils
              * @return True on success; false if the bit index is out of range.
              */
             bool     SetBit     ( uint8_t a_bit, bool  a_set );
+
             /**
              * @brief Retrieve a bit state into a provided output variable.
              * @param a_bit Bit index (0-31).
@@ -85,6 +93,7 @@ namespace utils
              * @return True on success; false if the bit index is out of range.
              */
             bool     GetBit     ( uint8_t a_bit, bool &a_set );
+
             /**
              * @brief Check whether a specific bit is set.
              * @param a_bit Bit index (0-31).

@@ -26,12 +26,14 @@ namespace utils
              * @return True if write operations can proceed; false otherwise.
              */
             virtual bool     IsWritable() noexcept = 0;
+
             /**
              * @brief Write a single byte to the sink.
              * @param a_value Byte to write.
              * @return True on success; false on failure.
              */
             virtual bool     Write( const uint8_t &a_value ) noexcept = 0;
+
             /**
              * @brief Write a buffer of bytes to the sink.
              * @param a_value Source buffer; must be non-null when a_length > 0.

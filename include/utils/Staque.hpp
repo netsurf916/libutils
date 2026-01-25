@@ -17,6 +17,7 @@
 namespace utils
 {
     template< typename type >
+
     /**
      * @brief Node for Staque linked list.
      * @details Holds a shared pointer to a value and links to neighbors.
@@ -77,6 +78,7 @@ namespace utils
     };
 
     template< typename type >
+
     /**
      * @brief Stack/queue hybrid container.
      * @details Provides push/pop (stack) and enqueue/dequeue (queue) operations.

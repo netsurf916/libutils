@@ -58,12 +58,14 @@ namespace utils
              * @param a_mode Open mode flags to use for operations.
              */
             File( FILE *a_file, uint32_t a_mode = FileMode::DefaultRead );
+
             /**
              * @brief Construct a file wrapper for a path.
              * @param a_fileName Path to the file; must be non-null.
              * @param a_mode Open mode flags to use when opening.
              */
             File( const char *a_fileName, uint32_t a_mode = FileMode::DefaultRead );
+
             /**
              * @brief Destroy the file wrapper and close any open handle.
              */
@@ -74,6 +76,7 @@ namespace utils
              * @return Reference to the stored file name string.
              */
             ::std::string &Name();
+
             /**
              * @brief Convert to a C-string of the file name.
              * @return Null-terminated file name string.
@@ -85,36 +88,43 @@ namespace utils
              * @param a_mode Open mode flags (bitwise combination).
              */
             void     SetMode( uint32_t a_mode = FileMode::DefaultRead );
+
             /**
              * @brief Get file size in bytes.
              * @return Size in bytes; 0 if unavailable.
              */
             uint64_t Size();
+
             /**
              * @brief Get the current file position.
              * @return Current offset in bytes; negative on error.
              */
             int64_t  Position();
+
             /**
              * @brief Check whether the file exists.
              * @return True if the file exists; false otherwise.
              */
             bool     Exists();
+
             /**
              * @brief Check whether the path refers to a regular file.
              * @return True if the path is a file; false otherwise.
              */
             bool     IsFile();
+
             /**
              * @brief Check whether the path refers to a directory.
              * @return True if the path is a directory; false otherwise.
              */
             bool     IsDirectory();
+
             /**
              * @brief Get the file's modification time.
              * @return Modification time as a UNIX timestamp (seconds).
              */
             uint32_t ModificationTime();
+
             /**
              * @brief Seek to a new file position.
              * @param a_position Absolute byte offset to seek to.
@@ -123,11 +133,13 @@ namespace utils
             bool     Seek( int64_t a_position );
 
             // Read functions
+
             /**
              * @brief Check if the file is ready for reading.
              * @return True if readable; false otherwise.
              */
             bool     IsReadable() noexcept final;
+
             /**
              * @brief Read a single byte from the file.
              * @param a_value Output byte to receive data.
@@ -135,6 +147,7 @@ namespace utils
              * @return True if a byte was read; false on EOF or error.
              */
             bool     Read( uint8_t &a_value, bool a_block = false ) noexcept final;
+
             /**
              * @brief Read up to a_length bytes from the file.
              * @param a_value Destination buffer; must be non-null when a_length > 0.
@@ -143,6 +156,7 @@ namespace utils
              * @return Number of bytes read; 0 on EOF or error.
              */
             uint32_t Read( uint8_t *a_value, uint32_t a_length, bool a_block = false ) noexcept final;
+
             /**
              * @brief Read file data into a Buffer.
              * @param a_buffer Destination buffer; must be non-null.
@@ -150,12 +164,14 @@ namespace utils
              * @return True if any data was read; false otherwise.
              */
             bool     Read( ::std::shared_ptr< Buffer > &a_buffer, bool a_block = false ) noexcept;
+
             /**
              * @brief Peek at the next byte without advancing the position.
              * @param a_value Output byte to receive the data.
              * @return True if a byte is available; false on EOF or error.
              */
             bool     Peek( uint8_t &a_value ) noexcept final;
+
             /**
              * @brief Peek up to a_length bytes without advancing the position.
              * @param a_value Destination buffer; must be non-null when a_length > 0.
@@ -163,6 +179,7 @@ namespace utils
              * @return Number of bytes copied; 0 on EOF or error.
              */
             uint32_t Peek( uint8_t *a_value, uint32_t a_length ) noexcept final;
+
             /**
              * @brief Peek file data into a Buffer without advancing the position.
              * @param a_buffer Destination buffer; must be non-null.
@@ -171,17 +188,20 @@ namespace utils
             bool     Peek( ::std::shared_ptr< Buffer > &a_buffer ) noexcept;
 
             // Write functions
+
             /**
              * @brief Check if the file is ready for writing.
              * @return True if writable; false otherwise.
              */
             bool     IsWritable() noexcept final;
+
             /**
              * @brief Write a single byte to the file.
              * @param a_value Byte to write.
              * @return True if the byte was written; false otherwise.
              */
             bool     Write( const uint8_t &a_value ) noexcept final;
+
             /**
              * @brief Write bytes to the file.
              * @param a_value Source buffer; must be non-null when a_length > 0.
@@ -189,6 +209,7 @@ namespace utils
              * @return Number of bytes written; 0 on error.
              */
             uint32_t Write( const uint8_t *a_value, uint32_t a_length ) noexcept final;
+
             /**
              * @brief Write buffer contents to the file.
              * @param a_buffer Source buffer; must be non-null.
@@ -201,6 +222,7 @@ namespace utils
              * @return True if deletion succeeded; false otherwise.
              */
             bool     Delete();
+
             /**
              * @brief Close the file handle if open.
              * @return True on success; false if close failed.
