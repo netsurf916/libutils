@@ -1,4 +1,4 @@
-    /**
+/**
     HttpHelpers.hpp : HttpHelpers implementation
     Copyright 2026 Daniel Wilson
     SPDX-License-Identifier: MIT
@@ -6,13 +6,12 @@
 
 #include <utils/HttpHelpers.hpp>
 #include <utils/Tokens.hpp>
-#include <unistd.h>
 #include <sys/stat.h>
 
 #define MAXBUFFERLEN 65536
 
 namespace utils
-{    
+{
     uint8_t HttpHelpers::HexToInt( char a_value )
     {
         if( ( a_value >= '0' ) && ( a_value <= '9' ) )

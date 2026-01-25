@@ -10,8 +10,10 @@
 #ifndef _INIFILE_HPP_
 #define _INIFILE_HPP_
 
-#include <utils/Utils.hpp>
 #include <utils/File.hpp>
+#include <utils/KeyValuePair.hpp>
+#include <utils/Lockable.hpp>
+#include <utils/Types.hpp>
 #include <memory>
 #include <string>
 

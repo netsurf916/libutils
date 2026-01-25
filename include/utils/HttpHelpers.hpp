@@ -5,8 +5,13 @@
     SPDX-License-Identifier: MIT
 */
 
+#pragma once
+
+#ifndef _HTTPHELPERS_HPP_
+#define _HTTPHELPERS_HPP_
+
+#include <utils/Types.hpp>
 #include <string>
-#include <unistd.h>
 
 namespace utils
 {
@@ -88,3 +93,5 @@ namespace utils
             static bool          IsFile( ::std::string &a_path );
     };
 }
+
+#endif // _HTTPHELPERS_HPP_

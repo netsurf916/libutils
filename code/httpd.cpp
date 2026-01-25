@@ -8,12 +8,9 @@
 #include <utils/Tokens.hpp>
 #include <utils/LogFile.hpp>
 #include <utils/IniFile.hpp>
-#include <utils/File.hpp>
 #include <utils/Thread.hpp>
 #include <utils/KeyValuePair.hpp>
 #include <utils/HttpRequest.hpp>
-#include <sys/stat.h>
-#include <string.h>
 #include <unistd.h>
 #include <stdio.h>
 
