@@ -93,7 +93,16 @@ Key behaviors:
 - Spawns a fixed-size thread pool (`NUMTHREADS`) to process clients.
 - Parses HTTP requests, maps request paths to the document root, and writes
   status codes based on file existence.
+- Supports optional HTTP Basic authentication via an `htpasswd` file when the
+  `access` entry is configured under `[settings]` in `httpd.ini`.
 - Logs request metadata (method, resource, status) to the configured log file.
+
+To generate compatible htpasswd entries, use the `-s` option for `{SHA}` or
+`-d`/`-m`/`-B` for crypt-style hashes, for example:
+
+```sh
+htpasswd -c -s ./httpd.htpasswd alice
+```
 
 ### `vic` (VIC cipher demo)
 

@@ -93,6 +93,14 @@ namespace utils
             ::std::string  Host();
 
             /**
+             * @brief Retrieve a metadata header value.
+             * @param a_key Header name to lookup.
+             * @param a_value Output value string.
+             * @return True if the header is present; false otherwise.
+             */
+            bool           HeaderValue( const ::std::string &a_key, ::std::string &a_value );
+
+            /**
              * @brief Access the response string buffer.
              * @return Mutable reference to the response.
              */

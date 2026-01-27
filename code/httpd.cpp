@@ -11,6 +11,7 @@
 #include <utils/Thread.hpp>
 #include <utils/KeyValuePair.hpp>
 #include <utils/HttpRequest.hpp>
+#include <utils/HttpAccess.hpp>
 #include <unistd.h>
 #include <stdio.h>
 
@@ -25,6 +26,7 @@ struct ThreadCTX : public Lockable
     shared_ptr< Socket >  socket;
     shared_ptr< LogFile > logger;
     shared_ptr< IniFile > settings;
+    shared_ptr< HttpAccess > access;
     string                address;
     uint32_t              port;
     uint32_t              id;
@@ -50,6 +52,11 @@ int main( int argc, char *argv[] )
     string address;
     settings->ReadValue( "settings", "port",    port );
     settings->ReadValue( "settings", "address", address );
+    shared_ptr< HttpAccess > access = make_shared< HttpAccess >();
+    if( access )
+    {
+        access->Configure( *settings );
+    }
 
     if( ( 0 == port.length() ) || ( 0 == address.length() ) )
     {
@@ -107,6 +114,7 @@ int main( int argc, char *argv[] )
                         clients[ c ]->GetContext()->socket   = client;
                         clients[ c ]->GetContext()->logger   = logger;
                         clients[ c ]->GetContext()->settings = settings;
+                        clients[ c ]->GetContext()->access   = access;
                         clients[ c ]->GetContext()->address  = address;
                         clients[ c ]->GetContext()->port     = port;
                         clients[ c ]->GetContext()->id       = c;
@@ -198,7 +206,16 @@ void *ProcessClient( void *a_clientCtx )
         printf( " [*] Remote: %s:%u\n", context->address.c_str(), context->port );
         httpRequest->Log( *( context->logger ) );
 
-        if( ( context->settings->ReadValue( "path", httpRequest->Host().c_str(), hostHome ) ||
+        bool authorized = true;
+        if( context->access && context->access->Enabled() &&
+            !( context->access->IsAuthorized( *httpRequest ) ) )
+        {
+            response = context->access->RespondUnauthorized( context->socket );
+            authorized = false;
+        }
+
+        if( authorized &&
+            ( context->settings->ReadValue( "path", httpRequest->Host().c_str(), hostHome ) ||
               context->settings->ReadValue( "path", "default", hostHome ) ) &&
             ( context->settings->ReadValue( "document", httpRequest->Host().c_str(), defaultDoc ) ||
               context->settings->ReadValue( "document", "default", defaultDoc ) ) )
@@ -223,80 +240,83 @@ void *ProcessClient( void *a_clientCtx )
             }
         }
 
-        // Process internal operation requests
-        if( mimeType == "internal" )
+        if( authorized )
         {
-            // Default mime type for internal responses
-            mimeType = "text/plain";
-            string operation = fileName;
-            auto start = operation.rfind( '/' );
-            auto end   = operation.rfind( '.' );
-            operation = operation.substr( start + 1, end - start - 1 );
-            if( operation.length() > 0 )
+            // Process internal operation requests
+            if( mimeType == "internal" )
             {
-                Tokens::MakeLower( operation );
-                printf( " [@] Internal operation: %s\n", operation.c_str() );
+                // Default mime type for internal responses
+                mimeType = "text/plain";
+                string operation = fileName;
+                auto start = operation.rfind( '/' );
+                auto end   = operation.rfind( '.' );
+                operation = operation.substr( start + 1, end - start - 1 );
+                if( operation.length() > 0 )
                 {
-                    utils::Lock logLock( context->logger.get() );
-                    context->logger->Log( context->address, true, false );
-                    context->logger->Log( ":", false, false );
-                    context->logger->Log( context->port, false, false );
-                    context->logger->Log( " - Internal operation: ", false, false );
-                    bool printable = true;
-                    for( size_t i = 0; ( i < operation.length() ) && printable; ++i )
+                    Tokens::MakeLower( operation );
+                    printf( " [@] Internal operation: %s\n", operation.c_str() );
                     {
-                        printable = Tokens::IsPrintable( operation[ i ] );
+                        utils::Lock logLock( context->logger.get() );
+                        context->logger->Log( context->address, true, false );
+                        context->logger->Log( ":", false, false );
+                        context->logger->Log( context->port, false, false );
+                        context->logger->Log( " - Internal operation: ", false, false );
+                        bool printable = true;
+                        for( size_t i = 0; ( i < operation.length() ) && printable; ++i )
+                        {
+                            printable = Tokens::IsPrintable( operation[ i ] );
+                        }
+                        if( printable )
+                        {
+                            context->logger->Log( operation.c_str(), false, true );
+                        }
+                        else
+                        {
+                            context->logger->Log( "UNKNOWN", false, true );
+                        }
                     }
-                    if( printable )
+                    if( "ip" == operation )
                     {
-                        context->logger->Log( operation.c_str(), false, true );
+                        // Reuse mime type: "text/plain"
+                        httpRequest->Response() += context->address;
                     }
-                    else
+                    else if( "request" == operation )
                     {
-                        context->logger->Log( "UNKNOWN", false, true );
+                        mimeType = "text/html";
+                        shared_ptr< KeyValuePair< string, string > > meta = httpRequest->Meta();
+                        httpRequest->Response() += "<!DOCTYPE html>\n<html>\n <head>\n  <title>Client Request</title>\n </head>\n<body>";
+                        httpRequest->Response() += "Client: ";
+                        httpRequest->Response() += context->address;
+                        httpRequest->Response() += ":";
+                        httpRequest->Response() += to_string( context->port );
+                        httpRequest->Response() += "<br><br>\n";
+                        httpRequest->Response() += httpRequest->Method();
+                        httpRequest->Response() += " ";
+                        httpRequest->Response() += httpRequest->Uri();
+                        httpRequest->Response() += " ";
+                        httpRequest->Response() += httpRequest->Version();
+                        httpRequest->Response() += "<br>\n";
+                        httpRequest->Response() += "<table>\n";
+                        while( meta )
+                        {
+                            httpRequest->Response() += " <tr>\n";
+                            httpRequest->Response() += "  <td>";
+                            httpRequest->Response() += meta->Key();
+                            httpRequest->Response() += "</td>\n";
+                            httpRequest->Response() += "  <td>";
+                            httpRequest->Response() += meta->Value();
+                            httpRequest->Response() += "</td>\n";
+                            httpRequest->Response() += " </tr>\n";
+                            meta = meta->Next();
+                        }
+                        httpRequest->Response() += "</table>\n";
+                        httpRequest->Response() += "</body></html>\n";
                     }
-                }
-                if( "ip" == operation )
-                {
-                    // Reuse mime type: "text/plain"
-                    httpRequest->Response() += context->address;
-                }
-                else if( "request" == operation )
-                {
-                    mimeType = "text/html";
-                    shared_ptr< KeyValuePair< string, string > > meta = httpRequest->Meta();
-                    httpRequest->Response() += "<!DOCTYPE html>\n<html>\n <head>\n  <title>Client Request</title>\n </head>\n<body>";
-                    httpRequest->Response() += "Client: ";
-                    httpRequest->Response() += context->address;
-                    httpRequest->Response() += ":";
-                    httpRequest->Response() += to_string( context->port );
-                    httpRequest->Response() += "<br><br>\n";
-                    httpRequest->Response() += httpRequest->Method();
-                    httpRequest->Response() += " ";
-                    httpRequest->Response() += httpRequest->Uri();
-                    httpRequest->Response() += " ";
-                    httpRequest->Response() += httpRequest->Version();
-                    httpRequest->Response() += "<br>\n";
-                    httpRequest->Response() += "<table>\n";
-                    while( meta )
-                    {
-                        httpRequest->Response() += " <tr>\n";
-                        httpRequest->Response() += "  <td>";
-                        httpRequest->Response() += meta->Key();
-                        httpRequest->Response() += "</td>\n";
-                        httpRequest->Response() += "  <td>";
-                        httpRequest->Response() += meta->Value();
-                        httpRequest->Response() += "</td>\n";
-                        httpRequest->Response() += " </tr>\n";
-                        meta = meta->Next();
-                    }
-                    httpRequest->Response() += "</table>\n";
-                    httpRequest->Response() += "</body></html>\n";
                 }
             }
-        }
 
-        response = httpRequest->Respond( context->socket, fileName, mimeType, bListDirs );
+            response = httpRequest->Respond( context->socket, fileName, mimeType, bListDirs );
+        }
 
         printf( " [+] Response: %d\n", response );
         {

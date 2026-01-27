@@ -88,6 +88,29 @@ namespace utils
         return host;
     }
 
+    bool HttpRequest::HeaderValue( const ::std::string &a_key, ::std::string &a_value )
+    {
+        utils::Lock lock( this );
+        a_value.clear();
+        if( a_key.length() == 0 )
+        {
+            return false;
+        }
+        ::std::string key( a_key );
+        Tokens::MakeUpper( key );
+        ::std::shared_ptr< KeyValuePair< ::std::string, ::std::string > > start = m_meta;
+        while( start )
+        {
+            if( start->Key() == key )
+            {
+                a_value = start->Value();
+                return true;
+            }
+            start = start->Next();
+        }
+        return false;
+    }
+
     ::std::string &HttpRequest::Response()
     {
         utils::Lock lock( this );
