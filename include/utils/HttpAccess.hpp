@@ -32,6 +32,19 @@ namespace utils
      */
     class HttpAccess : public Lockable
     {
+        public:
+            struct AuthResult
+            {
+                bool         enabled;
+                bool         authorized;
+                bool         headerPresent;
+                bool         schemeValid;
+                bool         decoded;
+                bool         credentialsValid;
+                ::std::string user;
+                ::std::string reason;
+            };
+
         private:
             struct Entry
             {
@@ -45,6 +58,7 @@ namespace utils
             bool                      m_enabled;
             bool                      m_loaded;
             ::std::string             m_realm;
+            AuthResult                m_lastAuth;
 
             bool RefreshIfNeeded();
             bool LoadEntries();
@@ -89,6 +103,12 @@ namespace utils
              * @return HTTP status code (401) or negative on error.
              */
             int32_t RespondUnauthorized( ::std::shared_ptr< Socket > &a_socket );
+
+            /**
+             * @brief Retrieve the most recent authorization result.
+             * @param a_result Output structure populated with the last result.
+             */
+            void GetLastResult( AuthResult &a_result );
     };
 }
 

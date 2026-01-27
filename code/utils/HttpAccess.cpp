@@ -25,6 +25,14 @@ namespace utils
     : m_enabled( false )
     , m_loaded( false )
     {
+        m_lastAuth.enabled = false;
+        m_lastAuth.authorized = true;
+        m_lastAuth.headerPresent = false;
+        m_lastAuth.schemeValid = false;
+        m_lastAuth.decoded = false;
+        m_lastAuth.credentialsValid = false;
+        m_lastAuth.user.clear();
+        m_lastAuth.reason = "access disabled";
     }
 
     bool HttpAccess::Configure( IniFile &a_ini )
@@ -56,26 +64,40 @@ namespace utils
     bool HttpAccess::IsAuthorized( HttpRequest &a_request )
     {
         utils::Lock lock( this );
+        m_lastAuth.enabled = m_enabled;
+        m_lastAuth.authorized = false;
+        m_lastAuth.headerPresent = false;
+        m_lastAuth.schemeValid = false;
+        m_lastAuth.decoded = false;
+        m_lastAuth.credentialsValid = false;
+        m_lastAuth.user.clear();
+        m_lastAuth.reason.clear();
         if( !m_enabled )
         {
+            m_lastAuth.authorized = true;
+            m_lastAuth.reason = "access disabled";
             return true;
         }
         if( !RefreshIfNeeded() )
         {
+            m_lastAuth.reason = "access list unavailable";
             return false;
         }
 
         ::std::string header;
         if( !a_request.HeaderValue( "authorization", header ) )
         {
+            m_lastAuth.reason = "missing authorization header";
             return false;
         }
+        m_lastAuth.headerPresent = true;
         Tokens::TrimSpace( header );
         ::std::string scheme;
         ::std::string encoded;
         auto space = header.find( ' ' );
         if( space == ::std::string::npos )
         {
+            m_lastAuth.reason = "malformed authorization header";
             return false;
         }
         scheme  = header.substr( 0, space );
@@ -85,22 +107,42 @@ namespace utils
         Tokens::MakeUpper( scheme );
         if( scheme != "BASIC" )
         {
+            m_lastAuth.reason = "unsupported authorization scheme";
             return false;
         }
+        m_lastAuth.schemeValid = true;
 
         ::std::string decoded;
         if( !DecodeBase64( encoded, decoded ) )
         {
+            m_lastAuth.reason = "invalid base64 credentials";
             return false;
         }
         auto colon = decoded.find( ':' );
         if( colon == ::std::string::npos )
         {
+            m_lastAuth.reason = "invalid credential format";
             return false;
         }
         ::std::string user = decoded.substr( 0, colon );
         ::std::string pass = decoded.substr( colon + 1 );
-        return CheckCredentials( user, pass );
+        m_lastAuth.decoded = true;
+        m_lastAuth.user = user;
+        if( CheckCredentials( user, pass ) )
+        {
+            m_lastAuth.authorized = true;
+            m_lastAuth.credentialsValid = true;
+            m_lastAuth.reason = "authorized";
+            return true;
+        }
+        m_lastAuth.reason = "invalid credentials";
+        return false;
+    }
+
+    void HttpAccess::GetLastResult( AuthResult &a_result )
+    {
+        utils::Lock lock( this );
+        a_result = m_lastAuth;
     }
 
     int32_t HttpAccess::RespondUnauthorized( ::std::shared_ptr< Socket > &a_socket )
