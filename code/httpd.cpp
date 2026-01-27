@@ -34,6 +34,7 @@ struct ThreadCTX : public Lockable
 };
 
 void *ProcessClient( void *a_client );
+void LogAuthResult( ThreadCTX *context, const HttpAccess::AuthResult &a_result );
 
 int main( int argc, char *argv[] )
 {
@@ -56,6 +57,16 @@ int main( int argc, char *argv[] )
     if( access )
     {
         access->Configure( *settings );
+        if( access->Enabled() )
+        {
+            printf( " [*] Access control enabled\n" );
+            logger->Log( "Access control enabled", true, true );
+        }
+        else
+        {
+            printf( " [*] Access control disabled\n" );
+            logger->Log( "Access control disabled", true, true );
+        }
     }
 
     if( ( 0 == port.length() ) || ( 0 == address.length() ) )
@@ -207,11 +218,16 @@ void *ProcessClient( void *a_clientCtx )
         httpRequest->Log( *( context->logger ) );
 
         bool authorized = true;
-        if( context->access && context->access->Enabled() &&
-            !( context->access->IsAuthorized( *httpRequest ) ) )
+        if( context->access && context->access->Enabled() )
         {
-            response = context->access->RespondUnauthorized( context->socket );
-            authorized = false;
+            authorized = context->access->IsAuthorized( *httpRequest );
+            HttpAccess::AuthResult authResult;
+            context->access->GetLastResult( authResult );
+            LogAuthResult( context, authResult );
+            if( !authorized )
+            {
+                response = context->access->RespondUnauthorized( context->socket );
+            }
         }
 
         if( authorized &&
@@ -349,4 +365,52 @@ void *ProcessClient( void *a_clientCtx )
     printf( " [+] Thread exiting (id: %u)\n", context->id );
     context->running = false;
     pthread_exit( nullptr );
+}
+
+void LogAuthResult( ThreadCTX *context, const HttpAccess::AuthResult &a_result )
+{
+    if( !context || !( context->logger ) )
+    {
+        return;
+    }
+
+    const char *status = a_result.authorized ? "AUTHORIZED" : "DENIED";
+    if( a_result.user.length() > 0 )
+    {
+        printf( " [*] Auth %s for %s:%u (user: %s) - %s\n",
+            status,
+            context->address.c_str(),
+            context->port,
+            a_result.user.c_str(),
+            a_result.reason.c_str() );
+    }
+    else
+    {
+        printf( " [*] Auth %s for %s:%u - %s\n",
+            status,
+            context->address.c_str(),
+            context->port,
+            a_result.reason.c_str() );
+    }
+
+    utils::Lock logLock( context->logger.get() );
+    context->logger->Log( context->address, true, false );
+    context->logger->Log( ":", false, false );
+    context->logger->Log( context->port, false, false );
+    context->logger->Log( " - Auth ", false, false );
+    context->logger->Log( status, false, false );
+    if( a_result.user.length() > 0 )
+    {
+        context->logger->Log( " user=", false, false );
+        context->logger->Log( a_result.user.c_str(), false, false );
+    }
+    if( a_result.reason.length() > 0 )
+    {
+        context->logger->Log( " - ", false, false );
+        context->logger->Log( a_result.reason.c_str(), false, true );
+    }
+    else
+    {
+        context->logger->Log( "", false, true );
+    }
 }
