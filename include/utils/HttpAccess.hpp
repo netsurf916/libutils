@@ -39,13 +39,12 @@ namespace utils
                 ::std::string pass;
             };
 
-            ::std::vector< Entry >             m_entries;
-            ::std::string                      m_file;
-            ::std::shared_ptr< File >          m_fileHandle;
-            uint32_t               m_modTime;
-            bool                   m_enabled;
-            bool                   m_loaded;
-            ::std::string          m_realm;
+            ::std::vector< Entry >    m_entries;
+            ::std::string             m_file;
+            ::std::shared_ptr< File > m_fileHandle;
+            bool                      m_enabled;
+            bool                      m_loaded;
+            ::std::string             m_realm;
 
             bool RefreshIfNeeded();
             bool LoadEntries();

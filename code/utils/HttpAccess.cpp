@@ -22,8 +22,7 @@
 namespace utils
 {
     HttpAccess::HttpAccess()
-    : m_modTime( 0 )
-    , m_enabled( false )
+    : m_enabled( false )
     , m_loaded( false )
     {
     }
@@ -36,7 +35,6 @@ namespace utils
             m_entries.clear();
             m_file.clear();
             m_fileHandle.reset();
-            m_modTime = 0;
             m_enabled = false;
             m_loaded  = false;
             m_realm.clear();
@@ -148,9 +146,7 @@ namespace utils
         {
             return false;
         }
-        uint32_t modTime = m_modTime;
-        bool modified = m_fileHandle->IsModified( modTime );
-        if( m_loaded && !modified )
+        if( m_loaded && !m_fileHandle->IsModified() )
         {
             return true;
         }
@@ -158,7 +154,6 @@ namespace utils
         {
             return false;
         }
-        m_modTime = modTime;
         return true;
     }
 
