@@ -215,28 +215,70 @@ namespace utils
 
     bool HttpAccess::CheckCredentials( const ::std::string &a_user, const ::std::string &a_pass )
     {
+        auto startsWithUpper = []( const ::std::string &a_value, const ::std::string &a_prefix )
+        {
+            if( a_value.length() < a_prefix.length() )
+            {
+                return false;
+            }
+            for( size_t i = 0; i < a_prefix.length(); ++i )
+            {
+                char valueChar = a_value[ i ];
+                if( ( valueChar >= 'a' ) && ( valueChar <= 'z' ) )
+                {
+                    valueChar = static_cast< char >( valueChar - 'a' + 'A' );
+                }
+                if( valueChar != a_prefix[ i ] )
+                {
+                    return false;
+                }
+            }
+            return true;
+        };
+        auto trimPadding = []( ::std::string a_value )
+        {
+            while( ( a_value.length() > 0 ) && ( a_value[ a_value.length() - 1 ] == '=' ) )
+            {
+                a_value.pop_back();
+            }
+            return a_value;
+        };
+
         for( const auto &entry : m_entries )
         {
             if( entry.user != a_user )
             {
                 continue;
             }
-            if( entry.pass == a_pass )
-            {
-                return true;
-            }
             const ::std::string shaPrefix = "{SHA}";
-            if( ( entry.pass.length() > shaPrefix.length() ) &&
-                ( entry.pass.substr( 0, shaPrefix.length() ) == shaPrefix ) )
+            if( startsWithUpper( entry.pass, shaPrefix ) )
             {
                 uint8_t digest[ 20 ];
                 Sha1( reinterpret_cast< const uint8_t * >( a_pass.c_str() ), a_pass.length(), digest );
                 ::std::string encodedString = Base64Encode( digest, sizeof( digest ) );
-                if( entry.pass.substr( shaPrefix.length() ) == encodedString )
+                ::std::string stored = entry.pass.substr( shaPrefix.length() );
+                if( stored == encodedString )
+                {
+                    return true;
+                }
+                if( trimPadding( stored ) == trimPadding( encodedString ) )
                 {
                     return true;
                 }
                 continue;
+            }
+            const ::std::string plainPrefix = "{PLAIN}";
+            if( startsWithUpper( entry.pass, plainPrefix ) )
+            {
+                if( entry.pass.substr( plainPrefix.length() ) == a_pass )
+                {
+                    return true;
+                }
+                continue;
+            }
+            if( entry.pass == a_pass )
+            {
+                return true;
             }
             if( entry.pass.length() > 0 )
             {
@@ -245,13 +287,6 @@ namespace utils
                 {
                     return true;
                 }
-            }
-            const ::std::string plainPrefix = "{PLAIN}";
-            if( ( entry.pass.length() > plainPrefix.length() ) &&
-                ( entry.pass.substr( 0, plainPrefix.length() ) == plainPrefix ) &&
-                ( entry.pass.substr( plainPrefix.length() ) == a_pass ) )
-            {
-                return true;
             }
         }
         return false;
