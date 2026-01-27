@@ -602,14 +602,7 @@ namespace utils
                             while( ( ( file->Size() - file->Position() ) > 0 ) && a_socket->Valid() )
                             {
                                 uint32_t result = 0;
-                                if( ( file->Size() - file->Position() ) > sizeof( buffer ) )
-                                {
-                                    result = file->Read( ( uint8_t * )buffer, sizeof( buffer ) );
-                                }
-                                else
-                                {
-                                    result = file->Read( ( uint8_t * )buffer, file->Size() - file->Position() );
-                                }
+                                result = file->Read( ( uint8_t * )buffer, sizeof( buffer ) );
                                 uint32_t total = 0;
                                 while( ( total < result ) && a_socket->Valid() )
                                 {

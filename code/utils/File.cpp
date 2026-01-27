@@ -13,19 +13,37 @@ namespace utils
 {
     File::File( FILE *a_file, uint32_t a_mode /*= FileMode::DefaultRead*/ )
     : m_mode( a_mode )
+    , m_modTime( 0 )
     , m_file( a_file )
-    , m_ready( true )
+    , m_ready( false )
     {
-        m_ready = IsFile();
+        ::utils::Lock lock( this );
+        struct stat fileStat{};
+        if( m_file != nullptr )
+        {
+            int fd = fileno( m_file );
+            if( ( fd >= 0 ) && ( fstat( fd, &fileStat ) == 0 ) )
+            {
+                m_modTime = static_cast< uint32_t >( fileStat.st_mtime );
+                m_ready = S_ISREG( fileStat.st_mode );
+            }
+        }
     }
 
     File::File( const char *a_fileName, uint32_t a_mode /*= FileMode::DefaultRead*/ )
     : m_fileName( a_fileName )
     , m_mode( a_mode )
+    , m_modTime( 0 )
     , m_file( nullptr )
-    , m_ready( true )
+    , m_ready( false )
     {
-        m_ready = IsFile();
+        ::utils::Lock lock( this );
+        struct stat fileStat{};
+        if( !m_fileName.empty() && ( stat( m_fileName.c_str(), &fileStat ) == 0 ) )
+        {
+            m_modTime = static_cast< uint32_t >( fileStat.st_mtime );
+            m_ready = S_ISREG( fileStat.st_mode );
+        }
     }
 
     File::~File()
@@ -63,20 +81,25 @@ namespace utils
     uint64_t File::Size()
     {
         ::utils::Lock lock( this );
-        struct stat fileStat;
-        uint64_t length = 0;
-        if( nullptr == m_file )
+        struct stat fileStat{};
+        bool ok = false;
+        if( m_file != nullptr )
         {
-            Open();
-        }
-        if( nullptr != m_file )
-        {
-            if( ( 0 == fstat( fileno( m_file ), &fileStat ) ) && ( fileStat.st_size > 0 ) )
+            int fd = fileno( m_file );
+            if( fd >= 0 )
             {
-                length = static_cast< uint64_t >( fileStat.st_size );
+                ok = ( fstat( fd, &fileStat ) == 0 );
             }
         }
-        return length;
+        if( !ok && !m_fileName.empty() )
+        {
+            ok = ( stat( m_fileName.c_str(), &fileStat ) == 0 );
+        }
+        if( ok )
+        {
+            return static_cast< uint64_t >( fileStat.st_size );
+        }
+        return 0;
     }
 
     int64_t File::Position()
@@ -89,56 +112,119 @@ namespace utils
         if( nullptr != m_file )
         {
             int64_t position = ftell( m_file );
-            if( position > 0 )
+            if( position >= 0 )
             {
                 return position;
             }
         }
-        return 0;
+        return -1;
     }
 
     bool File::Exists()
     {
         ::utils::Lock lock( this );
-        struct stat fileStat;
-        if( stat( m_fileName.c_str(), &fileStat ) != 0 )
+        struct stat fileStat{};
+        bool ok = false;
+        if( m_file != nullptr )
         {
-            return false;
+            int fd = fileno( m_file );
+            if( fd >= 0 )
+            {
+                ok = ( fstat( fd, &fileStat ) == 0 );
+            }
         }
-        return S_ISREG( fileStat.st_mode ) || S_ISDIR( fileStat.st_mode );
+        if( !ok && !m_fileName.empty() )
+        {
+            ok = ( stat( m_fileName.c_str(), &fileStat ) == 0 );
+        }
+        if( ok )
+        {
+            return S_ISREG( fileStat.st_mode ) || S_ISDIR( fileStat.st_mode );
+        }
+        return false;
     }
 
     bool File::IsFile()
     {
         ::utils::Lock lock( this );
-        struct stat fileStat;
-        if( stat( m_fileName.c_str(), &fileStat ) != 0 )
+        struct stat fileStat{};
+        bool ok = false;
+        if( m_file != nullptr )
         {
-            return false;
+            int fd = fileno( m_file );
+            if( fd >= 0 )
+            {
+                ok = ( fstat( fd, &fileStat ) == 0 );
+            }
         }
-        return S_ISREG( fileStat.st_mode );
+        if( !ok && !m_fileName.empty() )
+        {
+            ok = ( stat( m_fileName.c_str(), &fileStat ) == 0 );
+        }
+        if( ok )
+        {
+            return S_ISREG( fileStat.st_mode );
+        }
+        return false;
     }
 
     bool File::IsDirectory()
     {
         ::utils::Lock lock( this );
-        struct stat fileStat;
-        if( stat( m_fileName.c_str(), &fileStat ) != 0 )
+        struct stat fileStat{};
+        bool ok = false;
+        if( m_file != nullptr )
         {
-            return false;
+            int fd = fileno( m_file );
+            if( fd >= 0 )
+            {
+                ok = ( fstat( fd, &fileStat ) == 0 );
+            }
         }
-        return S_ISDIR( fileStat.st_mode );
+        if( !ok && !m_fileName.empty() )
+        {
+            ok = ( stat( m_fileName.c_str(), &fileStat ) == 0 );
+        }
+        if( ok )
+        {
+            return S_ISDIR( fileStat.st_mode );
+        }
+        return false;
+    }
+
+    bool File::IsModified()
+    {
+        uint32_t modTime = ModificationTime();
+        bool modified = modTime != m_modTime;
+        if( modified )
+        {
+            m_modTime = modTime;
+        }
+        return modified;
     }
 
     uint32_t File::ModificationTime()
     {
         ::utils::Lock lock( this );
-        struct stat fileStat;
-        if( stat( m_fileName.c_str(), &fileStat ) != 0 )
+        struct stat fileStat{};
+        bool ok = false;
+        if( m_file != nullptr )
         {
-            return 0;
+            int fd = fileno( m_file );
+            if( fd >= 0 )
+            {
+                ok = ( fstat( fd, &fileStat ) == 0 );
+            }
         }
-        return static_cast< uint32_t >( fileStat.st_mtime );
+        if( !ok && !m_fileName.empty() )
+        {
+            ok = ( stat( m_fileName.c_str(), &fileStat ) == 0 );
+        }
+        if( ok )
+        {
+            return static_cast< uint32_t >( fileStat.st_mtime );
+        }
+        return 0;
     }
 
     bool File::Seek( int64_t a_position )

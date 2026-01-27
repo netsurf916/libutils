@@ -52,6 +52,7 @@ namespace utils
         protected:
             ::std::string  m_fileName;
             uint32_t       m_mode;
+            uint32_t       m_modTime;
             FILE          *m_file;
             bool           m_ready;
 
@@ -122,6 +123,12 @@ namespace utils
              * @return True if the path is a directory; false otherwise.
              */
             bool     IsDirectory();
+
+            /**
+             * @brief Check whether the path has been modified.
+             * @return True if the path has been modified.
+             */
+            bool     IsModified();
 
             /**
              * @brief Get the file's modification time.
