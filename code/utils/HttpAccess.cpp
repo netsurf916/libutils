@@ -8,6 +8,7 @@
 #include <utils/HttpAccess.hpp>
 #include <utils/Buffer.hpp>
 #include <utils/File.hpp>
+#include <utils/HttpHelpers.hpp>
 #include <utils/HttpRequest.hpp>
 #include <utils/IniFile.hpp>
 #include <utils/Lock.hpp>
@@ -24,6 +25,7 @@ namespace utils
     HttpAccess::HttpAccess()
     : m_enabled( false )
     , m_loaded( false )
+    , m_accessLoaded( false )
     {
         m_lastAuth.enabled = false;
         m_lastAuth.authorized = true;
@@ -46,6 +48,10 @@ namespace utils
             m_enabled = false;
             m_loaded  = false;
             m_realm.clear();
+            m_accessUsers.clear();
+            m_accessFile.clear();
+            m_accessHandle.reset();
+            m_accessLoaded = false;
             return false;
         }
         m_fileHandle = ::std::make_shared< File >( m_file.c_str(), FileMode::DefaultRead );
@@ -61,7 +67,7 @@ namespace utils
         return m_enabled;
     }
 
-    bool HttpAccess::IsAuthorized( HttpRequest &a_request )
+    bool HttpAccess::IsAuthorized( HttpRequest &a_request, const ::std::string &a_path )
     {
         utils::Lock lock( this );
         m_lastAuth.enabled = m_enabled;
@@ -130,6 +136,16 @@ namespace utils
         m_lastAuth.user = user;
         if( CheckCredentials( user, pass ) )
         {
+            if( !RefreshAccessList( a_path ) )
+            {
+                m_lastAuth.reason = "access list unavailable";
+                return false;
+            }
+            if( !IsUserAllowed( user ) )
+            {
+                m_lastAuth.reason = "user not permitted";
+                return false;
+            }
             m_lastAuth.authorized = true;
             m_lastAuth.credentialsValid = true;
             m_lastAuth.reason = "authorized";
@@ -329,6 +345,189 @@ namespace utils
                 {
                     return true;
                 }
+            }
+        }
+        return false;
+    }
+
+    bool HttpAccess::RefreshAccessList( const ::std::string &a_path )
+    {
+        ::std::string accessPath;
+        if( !FindAccessFile( a_path, accessPath ) )
+        {
+            m_accessUsers.clear();
+            m_accessFile.clear();
+            m_accessHandle.reset();
+            m_accessLoaded = false;
+            return true;
+        }
+
+        if( accessPath != m_accessFile )
+        {
+            m_accessFile = accessPath;
+            m_accessHandle = ::std::make_shared< File >( m_accessFile.c_str(), FileMode::DefaultRead );
+            m_accessLoaded = false;
+        }
+
+        if( !m_accessHandle || !m_accessHandle->Exists() )
+        {
+            return false;
+        }
+        if( m_accessLoaded && !m_accessHandle->IsModified() )
+        {
+            return true;
+        }
+        return LoadAccessList();
+    }
+
+    bool HttpAccess::LoadAccessList()
+    {
+        if( !m_accessHandle || !m_accessHandle->Exists() )
+        {
+            return false;
+        }
+        m_accessUsers.clear();
+        auto buffer = ::std::make_shared< Buffer >( MAXBUFFERLEN );
+        if( !buffer )
+        {
+            return false;
+        }
+        m_accessHandle->Seek( 0 );
+        while( TokenTypes::Line == Tokens::GetLine( *m_accessHandle, *buffer ) )
+        {
+            ::std::string line;
+            Tokens::GetLine( *buffer, line );
+            buffer->Clear();
+            Tokens::TrimSpace( line );
+            if( line.length() == 0 )
+            {
+                continue;
+            }
+            if( ( line[ 0 ] == '#' ) || ( line[ 0 ] == ';' ) )
+            {
+                continue;
+            }
+            ::std::string user = line;
+            auto split = user.find( ':' );
+            if( split != ::std::string::npos )
+            {
+                user = user.substr( 0, split );
+            }
+            auto space = user.find_first_of( " \t" );
+            if( space != ::std::string::npos )
+            {
+                user = user.substr( 0, space );
+            }
+            Tokens::TrimSpace( user );
+            if( user.length() == 0 )
+            {
+                continue;
+            }
+            m_accessUsers.push_back( user );
+        }
+        m_accessHandle->Close();
+        m_accessLoaded = true;
+        return true;
+    }
+
+    bool HttpAccess::FindAccessFile( const ::std::string &a_path, ::std::string &a_accessPath ) const
+    {
+        a_accessPath.clear();
+        if( a_path.length() == 0 )
+        {
+            return false;
+        }
+
+        ::std::string current = a_path;
+        if( ( current.length() > 1 ) && ( current[ current.length() - 1 ] == '/' ) )
+        {
+            current.pop_back();
+        }
+
+        ::std::string probe = current;
+        if( utils::HttpHelpers::IsFile( probe ) )
+        {
+            auto slash = current.find_last_of( '/' );
+            if( slash == ::std::string::npos )
+            {
+                return false;
+            }
+            if( slash == 0 )
+            {
+                current = "/";
+            }
+            else
+            {
+                current = current.substr( 0, slash );
+            }
+        }
+        else
+        {
+            probe = current;
+            if( !utils::HttpHelpers::IsDirectory( probe ) )
+            {
+                auto slash = current.find_last_of( '/' );
+                if( slash == ::std::string::npos )
+                {
+                    return false;
+                }
+                if( slash == 0 )
+                {
+                    current = "/";
+                }
+                else
+                {
+                    current = current.substr( 0, slash );
+                }
+            }
+        }
+
+        while( true )
+        {
+            ::std::string candidate = current;
+            if( ( candidate.length() > 0 ) && ( candidate[ candidate.length() - 1 ] != '/' ) )
+            {
+                candidate += '/';
+            }
+            candidate += ".htaccess";
+            File accessFile( candidate.c_str(), FileMode::DefaultRead );
+            if( accessFile.Exists() && accessFile.IsFile() )
+            {
+                a_accessPath = candidate;
+                return true;
+            }
+            if( current == "/" )
+            {
+                break;
+            }
+            auto slash = current.find_last_of( '/' );
+            if( slash == ::std::string::npos )
+            {
+                break;
+            }
+            if( slash == 0 )
+            {
+                current = "/";
+            }
+            else
+            {
+                current = current.substr( 0, slash );
+            }
+        }
+        return false;
+    }
+
+    bool HttpAccess::IsUserAllowed( const ::std::string &a_user ) const
+    {
+        if( m_accessUsers.empty() )
+        {
+            return m_accessFile.length() == 0;
+        }
+        for( const auto &user : m_accessUsers )
+        {
+            if( user == a_user )
+            {
+                return true;
             }
         }
         return false;
