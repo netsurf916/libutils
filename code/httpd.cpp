@@ -217,21 +217,7 @@ void *ProcessClient( void *a_clientCtx )
         printf( " [*] Remote: %s:%u\n", context->address.c_str(), context->port );
         httpRequest->Log( *( context->logger ) );
 
-        bool authorized = true;
-        if( context->access && context->access->Enabled() )
-        {
-            authorized = context->access->IsAuthorized( *httpRequest );
-            HttpAccess::AuthResult authResult;
-            context->access->GetLastResult( authResult );
-            LogAuthResult( context, authResult );
-            if( !authorized )
-            {
-                response = context->access->RespondUnauthorized( context->socket );
-            }
-        }
-
-        if( authorized &&
-            ( context->settings->ReadValue( "path", httpRequest->Host().c_str(), hostHome ) ||
+        if( ( context->settings->ReadValue( "path", httpRequest->Host().c_str(), hostHome ) ||
               context->settings->ReadValue( "path", "default", hostHome ) ) &&
             ( context->settings->ReadValue( "document", httpRequest->Host().c_str(), defaultDoc ) ||
               context->settings->ReadValue( "document", "default", defaultDoc ) ) )
@@ -253,6 +239,19 @@ void *ProcessClient( void *a_clientCtx )
             else
             {
                 printf( " [*] Filename: %s; Mime: %s\n", fileName.c_str(), mimeType.c_str() );
+            }
+        }
+
+        bool authorized = true;
+        if( context->access && context->access->Enabled() )
+        {
+            authorized = context->access->IsAuthorized( *httpRequest, fileName );
+            HttpAccess::AuthResult authResult;
+            context->access->GetLastResult( authResult );
+            LogAuthResult( context, authResult );
+            if( !authorized )
+            {
+                response = context->access->RespondUnauthorized( context->socket );
             }
         }
 

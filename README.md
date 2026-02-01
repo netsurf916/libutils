@@ -94,7 +94,10 @@ Key behaviors:
 - Parses HTTP requests, maps request paths to the document root, and writes
   status codes based on file existence.
 - Supports optional HTTP Basic authentication via an `htpasswd` file when the
-  `access` entry is configured under `[settings]` in `httpd.ini`.
+  `access` entry is configured under `[settings]` in `httpd.ini`. If a
+  `.htaccess` file is found while walking the requested path's directories back
+  toward `/`, only the users listed in the first `.htaccess` file are allowed
+  for that directory tree.
 - Logs request metadata (method, resource, status) to the configured log file.
 
 To generate compatible htpasswd entries, use the `-s` option for `{SHA}` or

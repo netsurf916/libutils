@@ -28,7 +28,10 @@ namespace utils
      * @brief Basic HTTP access control using htpasswd-style credentials.
      * @details Reads a user/password file in the form `user:password` and
      *          validates HTTP Basic Authorization headers. Supports common
-     *          htpasswd hashes including crypt-style entries and {SHA}.
+     *          htpasswd hashes including crypt-style entries and {SHA}. When a
+     *          resolved request path is provided, it will search for the first
+     *          `.htaccess` file while traversing the directory tree toward `/`
+     *          and restrict valid users to those listed (one user per line).
      */
     class HttpAccess : public Lockable
     {
@@ -59,11 +62,19 @@ namespace utils
             bool                      m_loaded;
             ::std::string             m_realm;
             AuthResult                m_lastAuth;
+            ::std::vector< ::std::string > m_accessUsers;
+            ::std::string                  m_accessFile;
+            ::std::shared_ptr< File >      m_accessHandle;
+            bool                           m_accessLoaded;
 
             bool RefreshIfNeeded();
             bool LoadEntries();
             bool ParseEntry( const ::std::string &a_line );
             bool CheckCredentials( const ::std::string &a_user, const ::std::string &a_pass );
+            bool RefreshAccessList( const ::std::string &a_path );
+            bool LoadAccessList();
+            bool FindAccessFile( const ::std::string &a_path, ::std::string &a_accessPath ) const;
+            bool IsUserAllowed( const ::std::string &a_user ) const;
             bool DecodeBase64( const ::std::string &a_input, ::std::string &a_output ) const;
             int  Base64Value( char a_char ) const;
             void Sha1( const uint8_t *a_data, size_t a_len, uint8_t a_output[ 20 ] ) const;
@@ -93,9 +104,10 @@ namespace utils
             /**
              * @brief Validate the Authorization header for a request.
              * @param a_request Request to inspect.
+             * @param a_path Optional resolved filesystem path for htaccess checks.
              * @return True if authorized or access is disabled; false otherwise.
              */
-            bool IsAuthorized( HttpRequest &a_request );
+            bool IsAuthorized( HttpRequest &a_request, const ::std::string &a_path = ::std::string() );
 
             /**
              * @brief Respond with a 401 Unauthorized challenge.
