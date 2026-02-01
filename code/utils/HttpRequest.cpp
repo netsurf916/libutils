@@ -432,6 +432,20 @@ namespace utils
             }
             return 408;
         }
+        if( ( m_method == "OPTIONS" ) &&
+            ( ( m_version == "HTTP/1.1" ) ||
+              ( m_version == "HTTP/1.0" ) ) )
+        {
+            sendb->Write( ( const uint8_t * )"HTTP/1.1 200 OK\r\n" );
+            sendb->Write( ( const uint8_t * )"Allow: GET, HEAD, OPTIONS\r\n" );
+            sendb->Write( ( const uint8_t * )"Connection: Close\r\n" );
+            sendb->Write( ( const uint8_t * )"Content-Length: 0\r\n\r\n" );
+            while( sendb->Length() && a_socket->Valid() )
+            {
+                a_socket->Write( sendb );
+            }
+            return 200;
+        }
         if( ( file->IsFile() || ( m_response.length() > 0 ) ) &&
             ( ( ( m_method  == "HEAD" ) ||
                 ( m_method  == "GET" ) ) &&
@@ -738,7 +752,7 @@ namespace utils
         else
         {
             sendb->Write( ( const uint8_t * )"HTTP/1.1 405 METHOD NOT ALLOWED\r\n" );
-            sendb->Write( ( const uint8_t * )"Allow: GET, HEAD\r\n" );
+            sendb->Write( ( const uint8_t * )"Allow: GET, HEAD, OPTIONS\r\n" );
             sendb->Write( ( const uint8_t * )"Connection: Close\r\n" );
             sendb->Write( ( const uint8_t * )"Content-Length: 0\r\n\r\n" );
             while( sendb->Length() && a_socket->Valid() )
