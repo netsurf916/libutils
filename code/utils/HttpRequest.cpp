@@ -406,7 +406,7 @@ namespace utils
             return -1;
         }
 
-        if( ( ( m_method == "HEAD" ) || ( m_method == "GET" ) ) && !file->Exists() && ( m_response.length() == 0 ) )
+        if( ( ( m_method == "HEAD" ) || ( m_method == "GET" ) || ( m_method == "OPTIONS" ) ) && !file->Exists() && ( m_response.length() == 0 ) )
         {
             if( a_socket->Valid() && sendb )
             {
