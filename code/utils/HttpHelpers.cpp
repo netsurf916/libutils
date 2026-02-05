@@ -191,7 +191,9 @@ namespace utils
 
     bool HttpHelpers::UriDecode( ::std::string &a_base, ::std::string &a_defaultDoc, ::std::string &a_uri, ::std::string &a_ext, ::std::string &a_defmime )
     {
-        while( HttpHelpers::UriDecode( a_uri, a_ext ) != 0 );
+        // Decode exactly once to avoid double-decoding reserved sequences
+        // like '%252B' and collapsing them into a space on subsequent passes.
+        HttpHelpers::UriDecode( a_uri, a_ext );
 
         ::std::string newUri( a_base );
         if( ( newUri.length() > 0 ) && ( '/' != newUri[ newUri.length() - 1 ] ) )
@@ -209,7 +211,7 @@ namespace utils
         if( isDir || ( a_ext.length() == 0 ) )
         {
             ::std::string newDefUri( newUri );
-            while( HttpHelpers::UriDecode( a_defaultDoc, a_ext ) != 0 );
+            HttpHelpers::UriDecode( a_defaultDoc, a_ext );
             newDefUri += a_defaultDoc;
 
             // Use the default document if it exists
