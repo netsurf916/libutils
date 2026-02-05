@@ -7,6 +7,7 @@
 #include <utils/Window.hpp>
 #include <utils/Lock.hpp>
 #include <ncurses.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
