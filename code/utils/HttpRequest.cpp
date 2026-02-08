@@ -10,6 +10,8 @@
 #include <dirent.h>
 #include <string.h>
 #include <unistd.h>
+#include <vector>
+#include <algorithm>
 
 #define MAXBUFFERLEN 65536
 
@@ -712,8 +714,10 @@ namespace utils
 
                 // Enumerate the directory contents
                 struct dirent *entry;
+                std::vector< std::string > listing;
                 while( ( entry = readdir( dir ) ) != nullptr )
                 {
+                    std::string name = entry->d_name;
                     // Skip symlinks
                     if( entry->d_type == DT_LNK )
                     {
@@ -724,25 +728,31 @@ namespace utils
                     {
                         continue;
                     }
+                    if( entry->d_type == DT_DIR )
+                    {
+                        name += '/';
+                    }
+                    listing.push_back( name );
+                }
+                closedir( dir );
+                entry = nullptr;
+
+                // Sort the list
+                std::sort( listing.begin(), listing.end() );
+
+                // Use the sorted directory listing to write the listing for the client
+                for( auto& name : listing )
+                {
                     sendb->Write( ( const uint8_t * )"<a style=\"font-family: monospace;\" href=\"" );
-                    sendb->Write( ( const uint8_t * )HttpHelpers::UriEncode( entry->d_name ).c_str() );
-                    if( entry->d_type == DT_DIR )
-                    {
-                        sendb->Write( ( const uint8_t * )"/" );
-                    }
+                    sendb->Write( ( const uint8_t * )HttpHelpers::UriEncode( name ).c_str() );
                     sendb->Write( ( const uint8_t * )"\">");
-                    sendb->Write( ( const uint8_t * )HttpHelpers::HtmlEscape( entry->d_name ).c_str() );
-                    if( entry->d_type == DT_DIR )
-                    {
-                        sendb->Write( ( const uint8_t * )"/" );
-                    }
+                    sendb->Write( ( const uint8_t * )HttpHelpers::HtmlEscape( name ).c_str() );
                     sendb->Write( ( const uint8_t * )"</a><br>\n" );
                     while( sendb->Length() && a_socket->Valid() )
                     {
                         a_socket->Write( sendb );
                     }
                 }
-                closedir( dir );
                 sendb->Write( ( const uint8_t * )"</body>\n" );
                 while( sendb->Length() && a_socket->Valid() )
                 {
