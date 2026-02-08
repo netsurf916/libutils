@@ -736,9 +736,31 @@ namespace utils
                 std::sort( listing.begin(), listing.end() );
 
                 // Start the html content
-                sendb->Write( ( const uint8_t * )"<!DOCTYPE html>\n<head><title>");
+                sendb->Write( ( const uint8_t * )"<!DOCTYPE html>\n<head>\n<meta charset=\"utf-8\">\n<title>");
                 sendb->Write( ( const uint8_t * )HttpHelpers::HtmlEscape( HttpHelpers::UriDecode( m_uri ) ).c_str() );
-                sendb->Write( ( const uint8_t * )"</title><meta charset=\"utf-8\"></head>\n<body>\n" );
+                // For no style, use:
+                //sendb->Write( ( const uint8_t * )"</title><meta charset=\"utf-8\"></head>\n<body>\n" );
+                sendb->Write( ( const uint8_t * )
+                    "</title></head>\n"
+                    "<body style=\""
+                    "margin:0;"
+                    "padding:16px;"
+                    "background:#000;"
+                    "color:#ddd;"
+                    "font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;"
+                    "\">\n"
+                    "<div style=\""
+                    "max-width:900px;"
+                    "margin:auto;"
+                    "background:#222;"
+                    "border-radius:12px;"
+                    "padding:12px 16px;"
+                    "box-shadow:0 0 0 1px #000;"
+                    "\">\n"
+                    "<div style=\"font-weight:600;margin-bottom:12px;\">Index of " );
+                sendb->Write((const uint8_t*)
+                HttpHelpers::HtmlEscape(HttpHelpers::UriDecode(m_uri)).c_str());
+                sendb->Write((const uint8_t*)"</div>\n");
 
                 // Use the sorted directory listing to write the listing for the client
                 for( auto& name : listing )
@@ -747,7 +769,21 @@ namespace utils
                     {
                         continue;
                     }
-                    sendb->Write( ( const uint8_t * )"<a style=\"font-family: monospace;\" href=\"" );
+                    // For no style, use:
+                    //sendb->Write( ( const uint8_t * )"<a style=\"font-family: monospace;\" href=\"" );
+                    sendb->Write( ( const uint8_t * )
+                        "<div style=\""
+                        "display:flex;"
+                        "align-items:center;"
+                        "gap:8px;"
+                        "padding:6px 4px;"
+                        "border-radius:6px;"
+                        "\">\n"
+                        "<a style=\""
+                        "color:#e6edf3;"
+                        "text-decoration:none;"
+                        "font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;"
+                        "\" href=\"" );
                     if( name.back() == '/' )
                     {
                         // URL encoding the trailing slash is ugly and breaks things
@@ -760,14 +796,20 @@ namespace utils
                         sendb->Write( ( const uint8_t * )HttpHelpers::UriEncode( name ).c_str() );
                     }
                     sendb->Write( ( const uint8_t * )"\">");
+                    // For no style, remove this line:
+                    sendb->Write( ( const uint8_t * )"<span style=\"color:#ddd;\">• </span>" );
                     sendb->Write( ( const uint8_t * )HttpHelpers::HtmlEscape( name ).c_str() );
-                    sendb->Write( ( const uint8_t * )"</a><br>\n" );
+                    // For no style, use:
+                    //sendb->Write( ( const uint8_t * )"</a><br>\n" );
+                    sendb->Write( ( const uint8_t * )"</a></div>\n" );
                     while( sendb->Length() && a_socket->Valid() )
                     {
                         a_socket->Write( sendb );
                     }
                 }
-                sendb->Write( ( const uint8_t * )"</body>\n" );
+                // For no style, use:
+                //sendb->Write( ( const uint8_t * )"</body>\n" );
+                sendb->Write( ( const uint8_t * )"</div></body>\n" );
                 while( sendb->Length() && a_socket->Valid() )
                 {
                     a_socket->Write( sendb );
