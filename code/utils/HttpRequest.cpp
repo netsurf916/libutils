@@ -743,8 +743,22 @@ namespace utils
                 // Use the sorted directory listing to write the listing for the client
                 for( auto& name : listing )
                 {
+                    if( name.empty() )
+                    {
+                        continue;
+                    }
                     sendb->Write( ( const uint8_t * )"<a style=\"font-family: monospace;\" href=\"" );
-                    sendb->Write( ( const uint8_t * )HttpHelpers::UriEncode( name ).c_str() );
+                    if( name.back() == '/' )
+                    {
+                        // URL encoding the trailing slash is ugly and breaks things
+                        sendb->Write( ( const uint8_t * )HttpHelpers::UriEncode( name.substr(0, name.size() - 1 ) ).c_str() );
+                        // The slash is needed for relative links, however
+                        sendb->Write( ( const uint8_t * )"/" );
+                    }
+                    else
+                    {
+                        sendb->Write( ( const uint8_t * )HttpHelpers::UriEncode( name ).c_str() );
+                    }
                     sendb->Write( ( const uint8_t * )"\">");
                     sendb->Write( ( const uint8_t * )HttpHelpers::HtmlEscape( name ).c_str() );
                     sendb->Write( ( const uint8_t * )"</a><br>\n" );
