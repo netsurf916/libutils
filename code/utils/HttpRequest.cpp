@@ -707,11 +707,6 @@ namespace utils
                     return 200;
                 }
 
-                // Start the html content
-                sendb->Write( ( const uint8_t * )"<!DOCTYPE html>\n<head><title>");
-                sendb->Write( ( const uint8_t * )HttpHelpers::HtmlEscape( HttpHelpers::UriDecode( m_uri ) ).c_str() );
-                sendb->Write( ( const uint8_t * )"</title><meta charset=\"utf-8\"></head>\n<body>\n" );
-
                 // Enumerate the directory contents
                 struct dirent *entry;
                 std::vector< std::string > listing;
@@ -739,6 +734,11 @@ namespace utils
 
                 // Sort the list
                 std::sort( listing.begin(), listing.end() );
+
+                // Start the html content
+                sendb->Write( ( const uint8_t * )"<!DOCTYPE html>\n<head><title>");
+                sendb->Write( ( const uint8_t * )HttpHelpers::HtmlEscape( HttpHelpers::UriDecode( m_uri ) ).c_str() );
+                sendb->Write( ( const uint8_t * )"</title><meta charset=\"utf-8\"></head>\n<body>\n" );
 
                 // Use the sorted directory listing to write the listing for the client
                 for( auto& name : listing )
