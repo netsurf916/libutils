@@ -459,87 +459,44 @@ namespace utils
             if( a_type.length() > 0 )
             {
                 // Partial content is only allowed for files, not internally generated content
-                if( ( m_method == "GET" ) && m_sset )
+                if( ( m_method == "GET" ) && m_sset && file->IsFile() )
                 {
-                    if( file->IsFile() )
+                    if( m_start < 0 )
                     {
-                        if( m_start < 0 )
+                        int64_t length = -m_start;
+                        if( length < 0 ) // Necessary check in case of min value
                         {
-                            int64_t length = -m_start;
-                            if( length < 0 ) // Necessary check in case of min value
-                            {
-                                length = 0;
-                            }
-                            int64_t size = static_cast< int64_t >( file->Size() );
-                            if( size > 0 )
-                            {
-                                m_start = size - length;
-                                if( m_start < 0 )
-                                {
-                                    m_start = 0;
-                                }
-                                m_end = size - 1;
-                            }
+                            length = 0;
                         }
-                        if( !m_eset || ( m_end < 0 ) )
+                        int64_t size = static_cast< int64_t >( file->Size() );
+                        if( size > 0 )
                         {
-                            m_end = file->Size() - 1;
-                        }
-                        if( ( file->Size() == 0 ) || ( m_end < m_start ) )
-                        {
-                            sendb->Write( ( const uint8_t * )"HTTP/1.1 416 RANGE NOT SATISFIABLE\r\n" );
-                            sendb->Write( ( const uint8_t * )"Connection: Close\r\n" );
-                            sendb->Write( ( const uint8_t * )"Content-Range: bytes */" );
-                            snprintf( buffer, sizeof( buffer ), "%lu", file->Size() );
-                            sendb->Write( ( const uint8_t * )buffer, strlen( buffer ) );
-                            sendb->Write( ( const uint8_t * )"\r\n");
-                            sendb->Write( ( const uint8_t * )"Content-Length: 0\r\n\r\n" );
-                            while( sendb->Length() && a_socket->Valid() )
+                            m_start = size - length;
+                            if( m_start < 0 )
                             {
-                                a_socket->Write( sendb );
+                                m_start = 0;
                             }
-                            return 416;
+                            m_end = size - 1;
                         }
                     }
-                    else if( m_response.length() > 0 )
+                    if( !m_eset || ( m_end < 0 ) )
                     {
-                        if( m_start < 0 )
+                        m_end = file->Size() - 1;
+                    }
+                    if( ( file->Size() == 0 ) || ( m_end < m_start ) )
+                    {
+                        sendb->Write( ( const uint8_t * )"HTTP/1.1 416 RANGE NOT SATISFIABLE\r\n" );
+                        sendb->Write( ( const uint8_t * )"Connection: Close\r\n" );
+                        sendb->Write( ( const uint8_t * )"Content-Range: bytes */" );
+                        snprintf( buffer, sizeof( buffer ), "%lu", file->Size() );
+                        sendb->Write( ( const uint8_t * )buffer, strlen( buffer ) );
+                        sendb->Write( ( const uint8_t * )"\r\n");
+                        sendb->Write( ( const uint8_t * )"Content-Length: 0\r\n\r\n" );
+                        while( sendb->Length() && a_socket->Valid() )
                         {
-                            int64_t length = -m_start;
-                            if( length < 0 ) // Necessary check in case of min value
-                            {
-                                length = 0;
-                            }
-                            int64_t size = static_cast< int64_t >( m_response.length() );
-                            if( size > 0 )
-                            {
-                                m_start = size - length;
-                                if( m_start < 0 )
-                                {
-                                    m_start = 0;
-                                }
-                                m_end = size - 1;
-                            }
+                            a_socket->Write( sendb );
                         }
-                        if( !m_eset || ( m_end < 0 ) )
-                        {
-                            m_end = m_response.length() - 1;
-                        }
-                        if( ( m_response.length() == 0 ) || ( m_end < m_start ) )
-                        {
-                            sendb->Write( ( const uint8_t * )"HTTP/1.1 416 RANGE NOT SATISFIABLE\r\n" );
-                            sendb->Write( ( const uint8_t * )"Connection: Close\r\n" );
-                            sendb->Write( ( const uint8_t * )"Content-Range: bytes */" );
-                            snprintf( buffer, sizeof( buffer ), "%lu", m_response.length() );
-                            sendb->Write( ( const uint8_t * )buffer, strlen( buffer ) );
-                            sendb->Write( ( const uint8_t * )"\r\n");
-                            sendb->Write( ( const uint8_t * )"Content-Length: 0\r\n\r\n" );
-                            while( sendb->Length() && a_socket->Valid() )
-                            {
-                                a_socket->Write( sendb );
-                            }
-                            return 416;
-                        }
+                        return 416;
                     }
                     sendb->Write( ( const uint8_t * )"HTTP/1.1 206 PARTIAL CONTENT\r\n" );
                     sendb->Write( ( const uint8_t * )"Connection: Close\r\n" );
@@ -554,14 +511,7 @@ namespace utils
                     snprintf( buffer, sizeof( buffer ), "%lu", m_end );
                     sendb->Write( ( const uint8_t * )buffer, strlen( buffer ) );
                     sendb->Write( ( const uint8_t * )"/" );
-                    if( m_response.length() > 0 )
-                    {
-                        snprintf( buffer, sizeof( buffer ), "%lu", m_response.length() );
-                    }
-                    else
-                    {
-                        snprintf( buffer, sizeof( buffer ), "%lu", file->Size() );
-                    }
+                    snprintf( buffer, sizeof( buffer ), "%lu", file->Size() );
                     sendb->Write( ( const uint8_t * )buffer, strlen( buffer ) );
                     sendb->Write( ( const uint8_t * )"\r\n" );
                     snprintf( buffer, sizeof( buffer ), "%lu", m_end - m_start + 1 );
@@ -572,44 +522,33 @@ namespace utils
                     {
                         a_socket->Write( sendb );
                     }
-                    if( file->IsFile() )
+                    if( ( m_end >= m_start ) && file->Seek( m_start ) )
                     {
-                        if( ( m_end >= m_start ) && file->Seek( m_start ) )
+                        while( ( file->Position() < ( m_end + 1 ) ) && a_socket->Valid() )
                         {
-                            while( ( file->Position() < ( m_end + 1 ) ) && a_socket->Valid() )
+                            uint32_t result = 0;
+                            if( ( ( m_end + 1 ) - file->Position() ) > ( int64_t )sizeof( buffer ) )
                             {
-                                uint32_t result = 0;
-                                if( ( ( m_end + 1 ) - file->Position() ) > ( int64_t )sizeof( buffer ) )
+                                result = file->Read( ( uint8_t * )buffer, sizeof( buffer ) );
+                            }
+                            else
+                            {
+                                result = file->Read( ( uint8_t * )buffer, ( m_end + 1 ) - file->Position() );
+                            }
+                            uint32_t total = 0;
+                            while( ( total < result ) && a_socket->Valid() )
+                            {
+                                total += sendb->Write( ( const uint8_t * )buffer + total, result - total );
+                                if( sendb->Length() > 0 )
                                 {
-                                    result = file->Read( ( uint8_t * )buffer, sizeof( buffer ) );
-                                }
-                                else
-                                {
-                                    result = file->Read( ( uint8_t * )buffer, ( m_end + 1 ) - file->Position() );
-                                }
-                                uint32_t total = 0;
-                                while( ( total < result ) && a_socket->Valid() )
-                                {
-                                    total += sendb->Write( ( const uint8_t * )buffer + total, result - total );
-                                    if( sendb->Length() > 0 )
-                                    {
-                                        a_socket->Write( sendb );
-                                    }
+                                    a_socket->Write( sendb );
                                 }
                             }
                         }
-                        while( sendb->Length() && a_socket->Valid() )
-                        {
-                            a_socket->Write( sendb );
-                        }
                     }
-                    else if( m_response.length() > 0 )
+                    while( sendb->Length() && a_socket->Valid() )
                     {
-                        uint32_t sent = 0;
-                        while( ( sent < m_response.length() ) && a_socket->Valid() )
-                        {
-                            sent += a_socket->Write( ( uint8_t * )( m_response.c_str() + sent ), static_cast< uint32_t >( m_response.length() - sent ) );
-                        }
+                        a_socket->Write( sendb );
                     }
                     return 206;
                 }
@@ -628,7 +567,10 @@ namespace utils
                     sendb->Write( ( const uint8_t * )"Content-Type: " );
                     sendb->Write( ( const uint8_t * )a_type.c_str(), a_type.length() );
                     sendb->Write( ( const uint8_t * )"\r\n" );
-                    sendb->Write( ( const uint8_t * )"Accept-Ranges: bytes\r\n" );
+                    if( file->IsFile() )
+                    {
+                        sendb->Write( ( const uint8_t * )"Accept-Ranges: bytes\r\n" );
+                    }
                     sendb->Write( ( const uint8_t * )"Content-Length: " );
                     sendb->Write( ( const uint8_t * )buffer, strlen( buffer ) );
                     sendb->Write( ( const uint8_t * )"\r\n\r\n" );
