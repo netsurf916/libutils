@@ -17,6 +17,7 @@
 #include <memory>
 #include <string>
 #include <stdio.h>
+#include <sys/stat.h>
 
 namespace utils
 {
@@ -52,7 +53,9 @@ namespace utils
         protected:
             ::std::string  m_fileName;
             uint32_t       m_mode;
-            uint32_t       m_modTime;
+            struct stat    m_cachedStat;
+            bool           m_cachedStatValid;
+            bool           m_cachedPathExists;
             FILE          *m_file;
             bool           m_ready;
 
@@ -241,6 +244,18 @@ namespace utils
             bool     Close();
 
         protected:
+            /**
+             * @brief Mark cached filesystem metadata as stale.
+             */
+            void     InvalidateStatCache();
+
+            /**
+             * @brief Refresh cached stat metadata.
+             * @param a_forceRefresh Force a filesystem query even if cached.
+             * @return True if stat data is available for this path/handle.
+             */
+            bool     RefreshStatCache( bool a_forceRefresh = false );
+
             /**
              * @brief Open the file using the stored name and mode flags.
              * @return True on success; false otherwise.
