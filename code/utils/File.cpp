@@ -16,6 +16,9 @@ namespace utils
     , m_cachedStat{}
     , m_cachedStatValid( false )
     , m_cachedPathExists( false )
+    , m_lastModTime( 0 )
+    , m_lastModTimeValid( false )
+    , m_modifiedLocally( false )
     , m_file( a_file )
     , m_ready( false )
     {
@@ -23,6 +26,8 @@ namespace utils
         if( RefreshStatCache( true ) )
         {
             m_ready = S_ISREG( m_cachedStat.st_mode );
+            m_lastModTime = static_cast< uint32_t >( m_cachedStat.st_mtime );
+            m_lastModTimeValid = true;
         }
     }
 
@@ -32,6 +37,9 @@ namespace utils
     , m_cachedStat{}
     , m_cachedStatValid( false )
     , m_cachedPathExists( false )
+    , m_lastModTime( 0 )
+    , m_lastModTimeValid( false )
+    , m_modifiedLocally( false )
     , m_file( nullptr )
     , m_ready( false )
     {
@@ -39,6 +47,8 @@ namespace utils
         if( RefreshStatCache( true ) )
         {
             m_ready = S_ISREG( m_cachedStat.st_mode );
+            m_lastModTime = static_cast< uint32_t >( m_cachedStat.st_mtime );
+            m_lastModTimeValid = true;
         }
     }
 
@@ -135,17 +145,42 @@ namespace utils
     bool File::IsModified()
     {
         ::utils::Lock lock( this );
-        if( !m_cachedStatValid )
+        if( m_modifiedLocally )
         {
             RefreshStatCache( true );
-            return false;
+            if( m_cachedPathExists )
+            {
+                m_lastModTime = static_cast< uint32_t >( m_cachedStat.st_mtime );
+                m_lastModTimeValid = true;
+            }
+            else
+            {
+                m_lastModTime = 0;
+                m_lastModTimeValid = false;
+            }
+            m_modifiedLocally = false;
+            return true;
         }
-        uint32_t modTime = static_cast< uint32_t >( m_cachedStat.st_mtime );
-        if( RefreshStatCache( true ) )
+
+        bool previousExists = m_lastModTimeValid;
+        uint32_t previousModTime = m_lastModTime;
+        bool nowExists = RefreshStatCache( true );
+        uint32_t nowModTime = nowExists ? static_cast< uint32_t >( m_cachedStat.st_mtime ) : 0;
+
+        bool modified = ( previousExists != nowExists ) ||
+                        ( nowExists && previousExists && ( previousModTime != nowModTime ) );
+
+        if( nowExists )
         {
-            return ( modTime != static_cast< uint32_t >( m_cachedStat.st_mtime ) );
+            m_lastModTime = nowModTime;
+            m_lastModTimeValid = true;
         }
-        return false;
+        else
+        {
+            m_lastModTime = 0;
+            m_lastModTimeValid = false;
+        }
+        return modified;
     }
 
     uint32_t File::ModificationTime()
@@ -339,6 +374,7 @@ namespace utils
         if( ok )
         {
             InvalidateStatCache();
+            m_modifiedLocally = true;
         }
         return ok;
     }
@@ -360,6 +396,7 @@ namespace utils
             if( written > 0 )
             {
                 InvalidateStatCache();
+                m_modifiedLocally = true;
             }
             return written;
         }
@@ -388,6 +425,7 @@ namespace utils
             {
                 a_buffer->TrimLeft( written );
                 InvalidateStatCache();
+                m_modifiedLocally = true;
             }
         }
         return ok;
@@ -403,6 +441,7 @@ namespace utils
             {
                 InvalidateStatCache();
                 m_ready = false;
+                m_modifiedLocally = true;
             }
             return deleted;
         }
@@ -516,6 +555,10 @@ namespace utils
         if( nullptr != m_file )
         {
             InvalidateStatCache();
+            if( FileMode::Write == ( m_mode & FileMode::Write ) )
+            {
+                m_modifiedLocally = true;
+            }
         }
         return ( nullptr != m_file );
     }

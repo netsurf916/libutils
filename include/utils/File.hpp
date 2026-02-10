@@ -56,6 +56,9 @@ namespace utils
             struct stat    m_cachedStat;
             bool           m_cachedStatValid;
             bool           m_cachedPathExists;
+            uint32_t       m_lastModTime;
+            bool           m_lastModTimeValid;
+            bool           m_modifiedLocally;
             FILE          *m_file;
             bool           m_ready;
 
