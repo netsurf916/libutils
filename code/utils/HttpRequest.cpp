@@ -483,10 +483,6 @@ namespace utils
                         {
                             length = 0;
                         }
-                        if( length > max_partial_content_size )
-                        {
-                            length = max_partial_content_size;
-                        }
                         if( size > 0 )
                         {
                             m_start = size - length;
