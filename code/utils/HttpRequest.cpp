@@ -15,6 +15,19 @@
 
 #define MAXBUFFERLEN 65536
 
+namespace
+{
+    const char *kDirectoryIndexCss =
+        "<style>"
+        "body{margin:0;padding:16px;background:#000;color:#ddd;font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;}"
+        ".wrap{max-width:900px;margin:auto;background:#222;border-radius:12px;padding:12px 16px;box-shadow:0 0 0 1px #000;}"
+        ".title{font-weight:600;margin-bottom:12px;}"
+        ".entry{display:flex;align-items:center;gap:8px;padding:6px 4px;border-radius:6px;}"
+        ".entry-link{color:#e6edf3;text-decoration:none;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}"
+        ".bullet{color:#ddd;}"
+        "</style>";
+}
+
 namespace utils
 {
     HttpRequest::HttpRequest()
@@ -682,24 +695,13 @@ namespace utils
                 sendb->Write( ( const uint8_t * )HttpHelpers::HtmlEscape( HttpHelpers::UriDecode( m_uri ) ).c_str() );
                 // For no style, use:
                 //sendb->Write( ( const uint8_t * )"</title><meta charset=\"utf-8\"></head>\n<body>\n" );
+                sendb->Write( ( const uint8_t * )"</title>" );
+                sendb->Write( ( const uint8_t * )kDirectoryIndexCss );
                 sendb->Write( ( const uint8_t * )
-                    "</title></head>\n"
-                    "<body style=\""
-                    "margin:0;"
-                    "padding:16px;"
-                    "background:#000;"
-                    "color:#ddd;"
-                    "font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;"
-                    "\">\n"
-                    "<div style=\""
-                    "max-width:900px;"
-                    "margin:auto;"
-                    "background:#222;"
-                    "border-radius:12px;"
-                    "padding:12px 16px;"
-                    "box-shadow:0 0 0 1px #000;"
-                    "\">\n"
-                    "<div style=\"font-weight:600;margin-bottom:12px;\">Index of " );
+                    "</head>\n"
+                    "<body>\n"
+                    "<div class=\"wrap\">\n"
+                    "<div class=\"title\">Index of " );
                 sendb->Write((const uint8_t*)
                 HttpHelpers::HtmlEscape(HttpHelpers::UriDecode(m_uri)).c_str());
                 sendb->Write((const uint8_t*)"</div>\n");
@@ -714,18 +716,8 @@ namespace utils
                     // For no style, use:
                     //sendb->Write( ( const uint8_t * )"<a style=\"font-family: monospace;\" href=\"" );
                     sendb->Write( ( const uint8_t * )
-                        "<div style=\""
-                        "display:flex;"
-                        "align-items:center;"
-                        "gap:8px;"
-                        "padding:6px 4px;"
-                        "border-radius:6px;"
-                        "\">\n"
-                        "<a style=\""
-                        "color:#e6edf3;"
-                        "text-decoration:none;"
-                        "font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;"
-                        "\" href=\"" );
+                        "<div class=\"entry\">\n"
+                        "<a class=\"entry-link\" href=\"" );
                     if( name.back() == '/' )
                     {
                         // URL encoding the trailing slash is ugly and breaks things
@@ -739,7 +731,7 @@ namespace utils
                     }
                     sendb->Write( ( const uint8_t * )"\">");
                     // For no style, remove this line:
-                    sendb->Write( ( const uint8_t * )"<span style=\"color:#ddd;\">• </span>" );
+                    sendb->Write( ( const uint8_t * )"<span class=\"bullet\">• </span>" );
                     sendb->Write( ( const uint8_t * )HttpHelpers::HtmlEscape( name ).c_str() );
                     // For no style, use:
                     //sendb->Write( ( const uint8_t * )"</a><br>\n" );
