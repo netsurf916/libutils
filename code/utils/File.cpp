@@ -13,36 +13,42 @@ namespace utils
 {
     File::File( FILE *a_file, uint32_t a_mode /*= FileMode::DefaultRead*/ )
     : m_mode( a_mode )
-    , m_modTime( 0 )
+    , m_cachedStat{}
+    , m_cachedStatValid( false )
+    , m_cachedPathExists( false )
+    , m_lastModTime( 0 )
+    , m_lastModTimeValid( false )
+    , m_modifiedLocally( false )
     , m_file( a_file )
     , m_ready( false )
     {
         ::utils::Lock lock( this );
-        struct stat fileStat{};
-        if( m_file != nullptr )
+        if( RefreshStatCache( true ) )
         {
-            int fd = fileno( m_file );
-            if( ( fd >= 0 ) && ( fstat( fd, &fileStat ) == 0 ) )
-            {
-                m_modTime = static_cast< uint32_t >( fileStat.st_mtime );
-                m_ready = S_ISREG( fileStat.st_mode );
-            }
+            m_ready = S_ISREG( m_cachedStat.st_mode );
+            m_lastModTime = static_cast< uint32_t >( m_cachedStat.st_mtime );
+            m_lastModTimeValid = true;
         }
     }
 
     File::File( const char *a_fileName, uint32_t a_mode /*= FileMode::DefaultRead*/ )
     : m_fileName( a_fileName )
     , m_mode( a_mode )
-    , m_modTime( 0 )
+    , m_cachedStat{}
+    , m_cachedStatValid( false )
+    , m_cachedPathExists( false )
+    , m_lastModTime( 0 )
+    , m_lastModTimeValid( false )
+    , m_modifiedLocally( false )
     , m_file( nullptr )
     , m_ready( false )
     {
         ::utils::Lock lock( this );
-        struct stat fileStat{};
-        if( !m_fileName.empty() && ( stat( m_fileName.c_str(), &fileStat ) == 0 ) )
+        if( RefreshStatCache( true ) )
         {
-            m_modTime = static_cast< uint32_t >( fileStat.st_mtime );
-            m_ready = S_ISREG( fileStat.st_mode );
+            m_ready = S_ISREG( m_cachedStat.st_mode );
+            m_lastModTime = static_cast< uint32_t >( m_cachedStat.st_mtime );
+            m_lastModTimeValid = true;
         }
     }
 
@@ -81,23 +87,9 @@ namespace utils
     uint64_t File::Size()
     {
         ::utils::Lock lock( this );
-        struct stat fileStat{};
-        bool ok = false;
-        if( m_file != nullptr )
+        if( RefreshStatCache() )
         {
-            int fd = fileno( m_file );
-            if( fd >= 0 )
-            {
-                ok = ( fstat( fd, &fileStat ) == 0 );
-            }
-        }
-        if( !ok && !m_fileName.empty() )
-        {
-            ok = ( stat( m_fileName.c_str(), &fileStat ) == 0 );
-        }
-        if( ok )
-        {
-            return static_cast< uint64_t >( fileStat.st_size );
+            return static_cast< uint64_t >( m_cachedStat.st_size );
         }
         return 0;
     }
@@ -123,23 +115,9 @@ namespace utils
     bool File::Exists()
     {
         ::utils::Lock lock( this );
-        struct stat fileStat{};
-        bool ok = false;
-        if( m_file != nullptr )
+        if( RefreshStatCache() )
         {
-            int fd = fileno( m_file );
-            if( fd >= 0 )
-            {
-                ok = ( fstat( fd, &fileStat ) == 0 );
-            }
-        }
-        if( !ok && !m_fileName.empty() )
-        {
-            ok = ( stat( m_fileName.c_str(), &fileStat ) == 0 );
-        }
-        if( ok )
-        {
-            return S_ISREG( fileStat.st_mode ) || S_ISDIR( fileStat.st_mode );
+            return S_ISREG( m_cachedStat.st_mode ) || S_ISDIR( m_cachedStat.st_mode );
         }
         return false;
     }
@@ -147,23 +125,9 @@ namespace utils
     bool File::IsFile()
     {
         ::utils::Lock lock( this );
-        struct stat fileStat{};
-        bool ok = false;
-        if( m_file != nullptr )
+        if( RefreshStatCache() )
         {
-            int fd = fileno( m_file );
-            if( fd >= 0 )
-            {
-                ok = ( fstat( fd, &fileStat ) == 0 );
-            }
-        }
-        if( !ok && !m_fileName.empty() )
-        {
-            ok = ( stat( m_fileName.c_str(), &fileStat ) == 0 );
-        }
-        if( ok )
-        {
-            return S_ISREG( fileStat.st_mode );
+            return S_ISREG( m_cachedStat.st_mode );
         }
         return false;
     }
@@ -171,34 +135,50 @@ namespace utils
     bool File::IsDirectory()
     {
         ::utils::Lock lock( this );
-        struct stat fileStat{};
-        bool ok = false;
-        if( m_file != nullptr )
+        if( RefreshStatCache() )
         {
-            int fd = fileno( m_file );
-            if( fd >= 0 )
-            {
-                ok = ( fstat( fd, &fileStat ) == 0 );
-            }
-        }
-        if( !ok && !m_fileName.empty() )
-        {
-            ok = ( stat( m_fileName.c_str(), &fileStat ) == 0 );
-        }
-        if( ok )
-        {
-            return S_ISDIR( fileStat.st_mode );
+            return S_ISDIR( m_cachedStat.st_mode );
         }
         return false;
     }
 
     bool File::IsModified()
     {
-        uint32_t modTime = ModificationTime();
-        bool modified = modTime != m_modTime;
-        if( modified )
+        ::utils::Lock lock( this );
+        if( m_modifiedLocally )
         {
-            m_modTime = modTime;
+            RefreshStatCache( true );
+            if( m_cachedPathExists )
+            {
+                m_lastModTime = static_cast< uint32_t >( m_cachedStat.st_mtime );
+                m_lastModTimeValid = true;
+            }
+            else
+            {
+                m_lastModTime = 0;
+                m_lastModTimeValid = false;
+            }
+            m_modifiedLocally = false;
+            return true;
+        }
+
+        bool previousExists = m_lastModTimeValid;
+        uint32_t previousModTime = m_lastModTime;
+        bool nowExists = RefreshStatCache( true );
+        uint32_t nowModTime = nowExists ? static_cast< uint32_t >( m_cachedStat.st_mtime ) : 0;
+
+        bool modified = ( previousExists != nowExists ) ||
+                        ( nowExists && previousExists && ( previousModTime != nowModTime ) );
+
+        if( nowExists )
+        {
+            m_lastModTime = nowModTime;
+            m_lastModTimeValid = true;
+        }
+        else
+        {
+            m_lastModTime = 0;
+            m_lastModTimeValid = false;
         }
         return modified;
     }
@@ -206,23 +186,9 @@ namespace utils
     uint32_t File::ModificationTime()
     {
         ::utils::Lock lock( this );
-        struct stat fileStat{};
-        bool ok = false;
-        if( m_file != nullptr )
+        if( RefreshStatCache( true ) )
         {
-            int fd = fileno( m_file );
-            if( fd >= 0 )
-            {
-                ok = ( fstat( fd, &fileStat ) == 0 );
-            }
-        }
-        if( !ok && !m_fileName.empty() )
-        {
-            ok = ( stat( m_fileName.c_str(), &fileStat ) == 0 );
-        }
-        if( ok )
-        {
-            return static_cast< uint32_t >( fileStat.st_mtime );
+            return static_cast< uint32_t >( m_cachedStat.st_mtime );
         }
         return 0;
     }
@@ -405,6 +371,11 @@ namespace utils
         bool ok = m_ready;
         ok = ok && ( nullptr != m_file );
         ok = ok && ( 1 == fwrite( &a_value, sizeof( uint8_t ), 1, m_file ) );
+        if( ok )
+        {
+            InvalidateStatCache();
+            m_modifiedLocally = true;
+        }
         return ok;
     }
 
@@ -421,7 +392,13 @@ namespace utils
         }
         if( m_ready && ( nullptr != m_file ) )
         {
-            return fwrite( a_value, sizeof( uint8_t ), a_length, m_file );
+            uint32_t written = fwrite( a_value, sizeof( uint8_t ), a_length, m_file );
+            if( written > 0 )
+            {
+                InvalidateStatCache();
+                m_modifiedLocally = true;
+            }
+            return written;
         }
         return 0;
     }
@@ -447,6 +424,8 @@ namespace utils
             if( ok )
             {
                 a_buffer->TrimLeft( written );
+                InvalidateStatCache();
+                m_modifiedLocally = true;
             }
         }
         return ok;
@@ -457,7 +436,14 @@ namespace utils
         ::utils::Lock lock( this );
         if( m_fileName.length() > 0 )
         {
-            return ( Close() && ( 0 == remove( m_fileName.c_str() ) ) );
+            bool deleted = ( Close() && ( 0 == remove( m_fileName.c_str() ) ) );
+            if( deleted )
+            {
+                InvalidateStatCache();
+                m_ready = false;
+                m_modifiedLocally = true;
+            }
+            return deleted;
         }
         return false;
     }
@@ -474,10 +460,49 @@ namespace utils
             if( 0 == fclose( m_file ) )
             {
                 m_file = nullptr;
+                InvalidateStatCache();
                 return true;
             }
         }
         return false;
+    }
+
+    void File::InvalidateStatCache()
+    {
+        m_cachedStatValid = false;
+        m_cachedPathExists = false;
+        memset( &m_cachedStat, 0, sizeof( m_cachedStat ) );
+    }
+
+    bool File::RefreshStatCache( bool a_forceRefresh /*= false*/ )
+    {
+        if( !a_forceRefresh && m_cachedStatValid )
+        {
+            return m_cachedPathExists;
+        }
+
+        InvalidateStatCache();
+        struct stat fileStat{};
+        bool ok = false;
+        if( m_file != nullptr )
+        {
+            int fd = fileno( m_file );
+            if( fd >= 0 )
+            {
+                ok = ( fstat( fd, &fileStat ) == 0 );
+            }
+        }
+        if( !ok && !m_fileName.empty() )
+        {
+            ok = ( stat( m_fileName.c_str(), &fileStat ) == 0 );
+        }
+        if( ok )
+        {
+            m_cachedStat = fileStat;
+        }
+        m_cachedPathExists = ok;
+        m_cachedStatValid = true;
+        return m_cachedPathExists;
     }
 
     bool File::Open()
@@ -527,6 +552,14 @@ namespace utils
         }
 
         m_file = fopen( m_fileName.c_str(), mode.c_str() );
+        if( nullptr != m_file )
+        {
+            InvalidateStatCache();
+            if( FileMode::Write == ( m_mode & FileMode::Write ) )
+            {
+                m_modifiedLocally = true;
+            }
+        }
         return ( nullptr != m_file );
     }
 }
