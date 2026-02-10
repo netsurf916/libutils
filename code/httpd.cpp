@@ -23,14 +23,14 @@ using namespace std;
 
 struct ThreadCTX : public Lockable
 {
-    shared_ptr< Socket >  socket;
-    shared_ptr< LogFile > logger;
-    shared_ptr< IniFile > settings;
+    shared_ptr< Socket     > socket;
+    shared_ptr< LogFile    > logger;
+    shared_ptr< IniFile    > settings;
     shared_ptr< HttpAccess > access;
-    string                address;
-    uint32_t              port;
-    uint32_t              id;
-    bool                  running;
+    string                   address;
+    uint32_t                 port;
+    uint32_t                 id;
+    bool                     running;
 };
 
 void *ProcessClient( void *a_client );
@@ -59,25 +59,21 @@ int main( int argc, char *argv[] )
         access->Configure( *settings );
         if( access->Enabled() )
         {
-            printf( " [*] Access control enabled\n" );
+            printf( "Access control enabled\n" );
             logger->Log( "Access control enabled", true, true );
         }
         else
         {
-            printf( " [*] Access control disabled\n" );
+            printf( "Access control disabled\n" );
             logger->Log( "Access control disabled", true, true );
         }
     }
 
     if( ( 0 == port.length() ) || ( 0 == address.length() ) )
     {
-        printf( " [!] Failed to read configuration\n" );
+        printf( "Failed to read configuration\n" );
         return 0;
     }
-
-    // Try for root if the requested port is < 1024
-    uid_t runningAs = getuid();
-    bool  gotRoot = ( ( 0 != runningAs ) && ( stoi( port ) < 1024 ) && ( 0 == setuid( 0 ) ) );
 
     // Start the listener
     uint32_t flags = SocketFlags::TcpServer;
@@ -85,17 +81,11 @@ int main( int argc, char *argv[] )
         make_shared< Socket >( address.c_str(), stoi( port ), flags );
     if( !listener || !listener->Valid() )
     {
-        printf( " [!] Error listening on: %s:%s\n", address.c_str(), port.c_str() );
+        printf( "Error listening on: %s:%s\n", address.c_str(), port.c_str() );
         return 0;
     }
 
-    // Give up root
-    if( gotRoot )
-    {
-        setuid( runningAs );
-    }
-
-    printf( " [+] Listening for incoming connnections on: %s:%s\n",
+    printf( "Listening for incoming connnections on: %s:%s\n",
         address.c_str(), port.c_str() );
     logger->Log( "Listening for incoming connections on: ", true, false );
     logger->Log( address, false, false );
@@ -114,7 +104,7 @@ int main( int argc, char *argv[] )
 
         if( client && client->Valid() && listener->Valid() )
         {
-            printf( " [*] Client connected: %s:%u\n", address.c_str(), port );
+            printf( "Client connected: %s:%u\n", address.c_str(), port );
             for( uint32_t c = 0; ( c < NUMTHREADS ); ++c )
             {
                 if( !( clients[ c ] ) )
@@ -137,7 +127,7 @@ int main( int argc, char *argv[] )
                             {
                                 client = nullptr;
                                 --availableThreads;
-                                printf( " [+] Client thread started (%s:%u)\n", address.c_str(), port );
+                                printf( "Client thread started (%s:%u)\n", address.c_str(), port );
                             }
                             else
                             {
@@ -187,7 +177,7 @@ void *ProcessClient( void *a_clientCtx )
         {
             context->running = false;
         }
-        printf( " [!] Client processing failed\n" );
+        printf( "Client processing failed\n" );
         pthread_exit( nullptr );
     }
 
@@ -199,13 +189,13 @@ void *ProcessClient( void *a_clientCtx )
         context->logger->Log( " - Connected", false, true );
     }
 
-    printf( " [+] Processing client (id: %u)\n", context->id );
+    printf( "Processing client (id: %u)\n", context->id );
 
     if( context->socket->Valid() && httpRequest->Read( context->socket ) )
     {
         httpRequest->RemoteAddress() = context->address;
         httpRequest->RemotePort()    = context->port;
-        printf( " [+] Got HTTP request\n" );
+        printf( "Got HTTP request\n" );
         string fileName;
         string fileType;
         string mimeType;
@@ -214,7 +204,7 @@ void *ProcessClient( void *a_clientCtx )
         string listDirs;
         bool   bListDirs = false;
         int response = 0;
-        printf( " [*] Remote: %s:%u\n", context->address.c_str(), context->port );
+        printf( "Remote: %s:%u\n", context->address.c_str(), context->port );
         httpRequest->Log( *( context->logger ) );
 
         if( ( context->settings->ReadValue( "path", httpRequest->Host().c_str(), hostHome ) ||
@@ -238,7 +228,7 @@ void *ProcessClient( void *a_clientCtx )
             }
             else
             {
-                printf( " [*] Filename: %s; Mime: %s\n", fileName.c_str(), mimeType.c_str() );
+                printf( "Filename: %s; Mime: %s\n", fileName.c_str(), mimeType.c_str() );
             }
         }
 
@@ -269,7 +259,7 @@ void *ProcessClient( void *a_clientCtx )
                 if( operation.length() > 0 )
                 {
                     Tokens::MakeLower( operation );
-                    printf( " [@] Internal operation: %s\n", operation.c_str() );
+                    printf( "Internal operation: %s\n", operation.c_str() );
                     {
                         utils::Lock logLock( context->logger.get() );
                         context->logger->Log( context->address, true, false );
@@ -333,7 +323,7 @@ void *ProcessClient( void *a_clientCtx )
             response = httpRequest->Respond( context->socket, fileName, mimeType, bListDirs );
         }
 
-        printf( " [+] Response: %d\n", response );
+        printf( "Response: %d\n", response );
         {
             utils::Lock logLock( context->logger.get() );
             context->logger->Log( context->address, true, false );
@@ -359,9 +349,9 @@ void *ProcessClient( void *a_clientCtx )
         context->logger->Log( " - Disconnected", false, true );
     }
 
-    printf( " [+] Finished processing client (%s:%u)\n", context->address.c_str(), context->port );
+    printf( "Finished processing client (%s:%u)\n", context->address.c_str(), context->port );
     context->socket->Shutdown();
-    printf( " [+] Thread exiting (id: %u)\n", context->id );
+    printf( "Thread exiting (id: %u)\n", context->id );
     context->running = false;
     pthread_exit( nullptr );
 }
@@ -376,7 +366,7 @@ void LogAuthResult( ThreadCTX *context, const HttpAccess::AuthResult &a_result )
     const char *status = a_result.authorized ? "AUTHORIZED" : "DENIED";
     if( a_result.user.length() > 0 )
     {
-        printf( " [*] Auth %s for %s:%u (user: %s) - %s\n",
+        printf( "%s %s:%u for user: %s (%s)\n",
             status,
             context->address.c_str(),
             context->port,
@@ -385,7 +375,7 @@ void LogAuthResult( ThreadCTX *context, const HttpAccess::AuthResult &a_result )
     }
     else
     {
-        printf( " [*] Auth %s for %s:%u - %s\n",
+        printf( "Auth %s for %s:%u - %s\n",
             status,
             context->address.c_str(),
             context->port,
