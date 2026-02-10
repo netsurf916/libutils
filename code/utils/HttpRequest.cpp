@@ -474,7 +474,6 @@ namespace utils
                 // Partial content is only allowed for files, not internally generated content
                 if( ( m_method == "GET" ) && m_sset && file->IsFile() )
                 {
-                    const int64_t max_partial_content_size = 10 * 1024 * 1024;
                     int64_t size = static_cast< int64_t >( file->Size() );
                     if( m_start < 0 )
                     {
@@ -500,10 +499,6 @@ namespace utils
                     if( m_end >= size )
                     {
                         m_end = size - 1;
-                    }
-                    if( ( m_end - m_start + 1 ) > max_partial_content_size )
-                    {
-                        m_end = m_start + max_partial_content_size - 1;
                     }
                     if( ( file->Size() == 0 ) || ( m_end < m_start ) )
                     {
