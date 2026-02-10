@@ -567,7 +567,10 @@ namespace utils
                     sendb->Write( ( const uint8_t * )"Content-Type: " );
                     sendb->Write( ( const uint8_t * )a_type.c_str(), a_type.length() );
                     sendb->Write( ( const uint8_t * )"\r\n" );
-                    sendb->Write( ( const uint8_t * )"Accept-Ranges: bytes\r\n" );
+                    if( file->IsFile() )
+                    {
+                        sendb->Write( ( const uint8_t * )"Accept-Ranges: bytes\r\n" );
+                    }
                     sendb->Write( ( const uint8_t * )"Content-Length: " );
                     sendb->Write( ( const uint8_t * )buffer, strlen( buffer ) );
                     sendb->Write( ( const uint8_t * )"\r\n\r\n" );
