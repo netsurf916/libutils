@@ -375,7 +375,7 @@ void LogAuthResult( ThreadCTX *context, const HttpAccess::AuthResult &a_result )
     }
     else
     {
-        printf( "Auth %s for %s:%u - %s\n",
+        printf( "%s %s:%u (%s)\n",
             status,
             context->address.c_str(),
             context->port,
@@ -386,7 +386,7 @@ void LogAuthResult( ThreadCTX *context, const HttpAccess::AuthResult &a_result )
     context->logger->Log( context->address, true, false );
     context->logger->Log( ":", false, false );
     context->logger->Log( context->port, false, false );
-    context->logger->Log( " - Auth ", false, false );
+    context->logger->Log( " - ", false, false );
     context->logger->Log( status, false, false );
     if( a_result.user.length() > 0 )
     {
@@ -395,8 +395,9 @@ void LogAuthResult( ThreadCTX *context, const HttpAccess::AuthResult &a_result )
     }
     if( a_result.reason.length() > 0 )
     {
-        context->logger->Log( " - ", false, false );
-        context->logger->Log( a_result.reason.c_str(), false, true );
+        context->logger->Log( " (", false, false );
+        context->logger->Log( a_result.reason.c_str(), false, false );
+        context->logger->Log( ")", false, true );
     }
     else
     {
