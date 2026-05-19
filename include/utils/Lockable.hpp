@@ -47,4 +47,4 @@ namespace utils
     };
 }
 
-#endif // _LOCK_HPP_
+#endif // _LOCKABLE_HPP_
