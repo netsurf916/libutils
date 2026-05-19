@@ -167,11 +167,11 @@ namespace utils
     uint32_t Buffer::Write( const uint8_t *a_value, uint32_t a_length /*= 0*/ ) noexcept
     {
         ::utils::Lock lock( this );
-        if( ( nullptr == m_end ) || ( ( nullptr == a_value ) && ( a_length > 0 ) ) )
+        if( ( nullptr == m_end ) || ( nullptr == a_value ) )
         {
             return 0;
         }
-        if( ( nullptr != a_value ) && ( 0 == a_length ) )
+        if( 0 == a_length )
         {
             while( 0 != a_value[ a_length ] )
             {
